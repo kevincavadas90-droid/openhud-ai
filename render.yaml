@@ -1,0 +1,26 @@
+# Render Blueprint — free-tier deployment of OpenHUD.
+# Push this repo to GitHub, then "New > Blueprint" on render.com and pick it.
+services:
+  - type: web
+    name: openhud
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENHUD_PASSWORD
+        generateValue: true # Render generates a strong password; see the dashboard
+      - key: OPENHUD_SESSION_SECRET
+        generateValue: true
+      - key: OPENHUD_DATA_DIR
+        value: /data
+      - key: OPENHUD_AUTH
+        value: "on"
+      # Add a free provider key (Groq/Google/OpenRouter) for reliable answers,
+      # or leave empty to use the keyless Pollinations endpoint.
+      # - key: GROQ_API_KEY
+      #   sync: false
+    disk:
+      name: openhud-data
+      mountPath: /data
+      sizeGB: 1

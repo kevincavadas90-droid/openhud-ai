@@ -7,14 +7,17 @@ const state = {
   projectId: "",
   settings: {},
   streaming: false,
+  lastProvider: null,
 };
 
 /* ---------------- API helpers ---------------- */
 async function api(path, options = {}) {
   const res = await fetch(path, {
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     ...options,
   });
+  if (res.status === 401) { window.location.href = "/login"; return null; }
   if (!res.ok) {
     let detail = res.statusText;
     try { detail = (await res.json()).detail || detail; } catch (_) {}
@@ -136,10 +139,12 @@ async function sendMessage(text) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
+  if (res.status === 401) { window.location.href = "/login"; return; }
   if (!res.ok || !res.body) {
     state.streaming = false;
     $("#send").disabled = false;
-    toast("Falha ao enviar mensagem", true);
+    const detail = await res.json().catch(() => ({}));
+    toast(detail.detail || "Falha ao enviar mensagem", true);
     return;
   }
 
@@ -168,6 +173,11 @@ async function sendMessage(text) {
       addToolEvent(payload.name, payload.ok, payload.output);
     } else if (event === "confirmation") {
       showConfirmation(payload);
+    } else if (event === "provider") {
+      state.lastProvider = payload.label || payload.provider;
+      updateProviderBadge();
+    } else if (event === "activity") {
+      refreshActivity();
     } else if (event === "error") {
       addMessage("assistant", "⚠️ Erro: " + (payload.message || "desconhecido"));
     }
@@ -411,6 +421,14 @@ async function saveSecret() {
   loadSecrets();
 }
 
+/* ---------------- Provider badge ---------------- */
+function updateProviderBadge() {
+  const el = $("#model-badge");
+  if (state.lastProvider) {
+    el.textContent = `respondendo via ${state.lastProvider}`;
+  }
+}
+
 /* ---------------- Health ---------------- */
 async function refreshHealth() {
   try {
@@ -511,6 +529,10 @@ function init() {
   };
   $("#s-save").onclick = saveSettings;
   $("#secret-save").onclick = saveSecret;
+  $("#logout").onclick = async () => {
+    await api("/api/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
 
   refreshHealth();
   setInterval(refreshHealth, 15000);

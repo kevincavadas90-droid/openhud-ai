@@ -1,132 +1,88 @@
-"""SQLite persistence layer.
+"""PostgreSQL backend, used when DATABASE_URL is set.
 
-A single Database object owns the schema and exposes small, explicit
-helpers. Connections are opened per operation (SQLite is cheap) with WAL
-enabled so concurrent request handlers stay consistent.
+Mirrors the :class:`openhud.core.db.Database` interface so the rest of the
+application is unaware of which engine is in use. Only psycopg is needed at
+runtime, and only when a Postgres URL is configured.
+
+The SQLite backend is the default and remains fully supported; Postgres is
+for deployments that need a database which outlives the application
+container (e.g. Neon, Supabase, Aiven free tiers).
 """
 from __future__ import annotations
 
 import json
-import sqlite3
-import threading
 import time
 import uuid
-from pathlib import Path
 from typing import Any, Iterable
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS settings (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS secrets (
-    name       TEXT PRIMARY KEY,
-    value      BLOB NOT NULL,
-    updated_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS projects (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    created_at  REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS conversations (
-    id         TEXT PRIMARY KEY,
-    project_id TEXT,
-    title      TEXT NOT NULL DEFAULT 'Nova conversa',
-    created_at REAL NOT NULL,
-    updated_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS messages (
-    id              TEXT PRIMARY KEY,
-    conversation_id TEXT NOT NULL,
-    role            TEXT NOT NULL,
-    content         TEXT NOT NULL DEFAULT '',
-    tool_calls      TEXT,
-    created_at      REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS memories (
-    id         TEXT PRIMARY KEY,
-    content    TEXT NOT NULL,
-    tags       TEXT NOT NULL DEFAULT '',
-    created_at REAL NOT NULL,
-    updated_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS activities (
-    id              TEXT PRIMARY KEY,
-    conversation_id TEXT,
-    kind            TEXT NOT NULL,
-    detail          TEXT NOT NULL DEFAULT '',
-    created_at      REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS tasks (
-    id               TEXT PRIMARY KEY,
-    name             TEXT NOT NULL,
-    prompt           TEXT NOT NULL,
-    interval_seconds INTEGER NOT NULL,
-    enabled          INTEGER NOT NULL DEFAULT 1,
-    next_run         REAL NOT NULL,
-    last_run         REAL,
-    last_status      TEXT,
-    last_result      TEXT,
-    created_at       REAL NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_activities_conv ON activities(conversation_id, created_at);
-"""
+SCHEMA_STATEMENTS = [
+    """CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY, value TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS secrets (
+        name TEXT PRIMARY KEY, value BYTEA NOT NULL, updated_at DOUBLE PRECISION NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+        created_at DOUBLE PRECISION NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY, project_id TEXT, title TEXT NOT NULL DEFAULT 'Nova conversa',
+        created_at DOUBLE PRECISION NOT NULL, updated_at DOUBLE PRECISION NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, role TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '', tool_calls TEXT, created_at DOUBLE PRECISION NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS memories (
+        id TEXT PRIMARY KEY, content TEXT NOT NULL, tags TEXT NOT NULL DEFAULT '',
+        created_at DOUBLE PRECISION NOT NULL, updated_at DOUBLE PRECISION NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS activities (
+        id TEXT PRIMARY KEY, conversation_id TEXT, kind TEXT NOT NULL,
+        detail TEXT NOT NULL DEFAULT '', created_at DOUBLE PRECISION NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, prompt TEXT NOT NULL,
+        interval_seconds INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+        next_run DOUBLE PRECISION NOT NULL, last_run DOUBLE PRECISION,
+        last_status TEXT, last_result TEXT, created_at DOUBLE PRECISION NOT NULL)""",
+    "CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_activities_conv ON activities(conversation_id, created_at)",
+]
 
 
 def _new_id() -> str:
     return uuid.uuid4().hex
 
 
-def create_database(path: Path, database_url: str = ""):
-    """Return the SQLite database, or a Postgres one when DATABASE_URL is set.
-
-    Falls back to SQLite (with a warning) if a Postgres URL is configured but
-    the driver or server is unavailable, so the app still starts.
-    """
-    import logging
-
-    if database_url:
-        try:
-            from .db_pg import PostgresDatabase
-
-            return PostgresDatabase(database_url)
-        except Exception as exc:  # driver missing or server unreachable
-            logging.getLogger("openhud.db").warning(
-                "DATABASE_URL configurada mas indisponível (%s); usando SQLite.", exc
-            )
-    return Database(path)
+def _translate(sql: str) -> str:
+    """SQLite uses ``?`` placeholders; Postgres uses ``%s``."""
+    return sql.replace("?", "%s")
 
 
-class Database:
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self._lock = threading.Lock()
+class PostgresDatabase:
+    def __init__(self, url: str) -> None:
+        import psycopg  # imported lazily so SQLite users need not install it
+
+        self.url = url
+        self._psycopg = psycopg
         self._init_schema()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, timeout=30)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+    def _connect(self):
+        return self._psycopg.connect(self.url, autocommit=True)
 
     def _init_schema(self) -> None:
-        with self._lock, self._connect() as conn:
-            conn.executescript(SCHEMA)
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                for stmt in SCHEMA_STATEMENTS:
+                    cur.execute(stmt)
 
     # -- generic helpers -------------------------------------------------
     def execute(self, sql: str, params: Iterable[Any] = ()) -> None:
-        with self._lock, self._connect() as conn:
-            conn.execute(sql, tuple(params))
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(_translate(sql), tuple(params))
 
-    def query(self, sql: str, params: Iterable[Any] = ()) -> list[sqlite3.Row]:
-        with self._lock, self._connect() as conn:
-            return conn.execute(sql, tuple(params)).fetchall()
+    def query(self, sql: str, params: Iterable[Any] = ()) -> list[dict[str, Any]]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(_translate(sql), tuple(params))
+            cols = [c.name for c in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
 
-    def query_one(self, sql: str, params: Iterable[Any] = ()) -> sqlite3.Row | None:
+    def query_one(self, sql: str, params: Iterable[Any] = ()) -> dict[str, Any] | None:
         rows = self.query(sql, params)
         return rows[0] if rows else None
 
@@ -137,13 +93,13 @@ class Database:
             return default
         try:
             return json.loads(row["value"])
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, TypeError):
             return default
 
     def set_setting(self, key: str, value: Any) -> None:
         self.execute(
             "INSERT INTO settings(key, value) VALUES(?, ?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
             (key, json.dumps(value)),
         )
 
@@ -154,7 +110,7 @@ class Database:
     def set_secret(self, name: str, value: bytes) -> None:
         self.execute(
             "INSERT INTO secrets(name, value, updated_at) VALUES(?, ?, ?) "
-            "ON CONFLICT(name) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            "ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
             (name, value, time.time()),
         )
 
@@ -170,8 +126,7 @@ class Database:
 
     # -- projects --------------------------------------------------------
     def create_project(self, name: str, description: str = "") -> dict[str, Any]:
-        pid = _new_id()
-        now = time.time()
+        pid, now = _new_id(), time.time()
         self.execute(
             "INSERT INTO projects(id, name, description, created_at) VALUES(?, ?, ?, ?)",
             (pid, name, description, now),
@@ -179,15 +134,14 @@ class Database:
         return {"id": pid, "name": name, "description": description, "created_at": now}
 
     def list_projects(self) -> list[dict[str, Any]]:
-        return [dict(r) for r in self.query("SELECT * FROM projects ORDER BY created_at DESC")]
+        return self.query("SELECT * FROM projects ORDER BY created_at DESC")
 
     def delete_project(self, pid: str) -> None:
         self.execute("DELETE FROM projects WHERE id=?", (pid,))
 
     # -- conversations ---------------------------------------------------
     def create_conversation(self, project_id: str | None = None, title: str = "Nova conversa") -> dict[str, Any]:
-        cid = _new_id()
-        now = time.time()
+        cid, now = _new_id(), time.time()
         self.execute(
             "INSERT INTO conversations(id, project_id, title, created_at, updated_at) VALUES(?, ?, ?, ?, ?)",
             (cid, project_id, title, now, now),
@@ -196,16 +150,13 @@ class Database:
 
     def list_conversations(self, project_id: str | None = None) -> list[dict[str, Any]]:
         if project_id:
-            rows = self.query(
+            return self.query(
                 "SELECT * FROM conversations WHERE project_id=? ORDER BY updated_at DESC", (project_id,)
             )
-        else:
-            rows = self.query("SELECT * FROM conversations ORDER BY updated_at DESC")
-        return [dict(r) for r in rows]
+        return self.query("SELECT * FROM conversations ORDER BY updated_at DESC")
 
     def get_conversation(self, cid: str) -> dict[str, Any] | None:
-        row = self.query_one("SELECT * FROM conversations WHERE id=?", (cid,))
-        return dict(row) if row else None
+        return self.query_one("SELECT * FROM conversations WHERE id=?", (cid,))
 
     def touch_conversation(self, cid: str, title: str | None = None) -> None:
         if title:
@@ -218,11 +169,8 @@ class Database:
         self.execute("DELETE FROM conversations WHERE id=?", (cid,))
 
     # -- messages --------------------------------------------------------
-    def add_message(
-        self, conversation_id: str, role: str, content: str, tool_calls: Any = None
-    ) -> dict[str, Any]:
-        mid = _new_id()
-        now = time.time()
+    def add_message(self, conversation_id: str, role: str, content: str, tool_calls: Any = None) -> dict[str, Any]:
+        mid, now = _new_id(), time.time()
         self.execute(
             "INSERT INTO messages(id, conversation_id, role, content, tool_calls, created_at) "
             "VALUES(?, ?, ?, ?, ?, ?)",
@@ -233,19 +181,15 @@ class Database:
 
     def list_messages(self, conversation_id: str) -> list[dict[str, Any]]:
         rows = self.query(
-            "SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at, rowid", (conversation_id,)
+            "SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at", (conversation_id,)
         )
-        out = []
-        for r in rows:
-            d = dict(r)
+        for d in rows:
             d["tool_calls"] = json.loads(d["tool_calls"]) if d["tool_calls"] else None
-            out.append(d)
-        return out
+        return rows
 
     # -- memories --------------------------------------------------------
     def add_memory(self, content: str, tags: str = "") -> dict[str, Any]:
-        mid = _new_id()
-        now = time.time()
+        mid, now = _new_id(), time.time()
         self.execute(
             "INSERT INTO memories(id, content, tags, created_at, updated_at) VALUES(?, ?, ?, ?, ?)",
             (mid, content, tags, now, now),
@@ -253,7 +197,7 @@ class Database:
         return {"id": mid, "content": content, "tags": tags, "created_at": now, "updated_at": now}
 
     def list_memories(self) -> list[dict[str, Any]]:
-        return [dict(r) for r in self.query("SELECT * FROM memories ORDER BY updated_at DESC")]
+        return self.query("SELECT * FROM memories ORDER BY updated_at DESC")
 
     def update_memory(self, mid: str, content: str, tags: str) -> None:
         self.execute(
@@ -266,17 +210,15 @@ class Database:
 
     def search_memories(self, query: str, limit: int = 8) -> list[dict[str, Any]]:
         like = f"%{query}%"
-        rows = self.query(
-            "SELECT * FROM memories WHERE content LIKE ? OR tags LIKE ? "
+        return self.query(
+            "SELECT * FROM memories WHERE content ILIKE ? OR tags ILIKE ? "
             "ORDER BY updated_at DESC LIMIT ?",
             (like, like, limit),
         )
-        return [dict(r) for r in rows]
 
     # -- activities ------------------------------------------------------
     def add_activity(self, kind: str, detail: str = "", conversation_id: str | None = None) -> dict[str, Any]:
-        aid = _new_id()
-        now = time.time()
+        aid, now = _new_id(), time.time()
         self.execute(
             "INSERT INTO activities(id, conversation_id, kind, detail, created_at) VALUES(?, ?, ?, ?, ?)",
             (aid, conversation_id, kind, detail, now),
@@ -284,10 +226,17 @@ class Database:
         return {"id": aid, "conversation_id": conversation_id, "kind": kind,
                 "detail": detail, "created_at": now}
 
+    def list_activities(self, conversation_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+        if conversation_id:
+            return self.query(
+                "SELECT * FROM activities WHERE conversation_id=? ORDER BY created_at DESC LIMIT ?",
+                (conversation_id, limit),
+            )
+        return self.query("SELECT * FROM activities ORDER BY created_at DESC LIMIT ?", (limit,))
+
     # -- scheduled tasks -------------------------------------------------
     def create_task(self, name: str, prompt: str, interval_seconds: int) -> dict[str, Any]:
-        tid = _new_id()
-        now = time.time()
+        tid, now = _new_id(), time.time()
         self.execute(
             "INSERT INTO tasks(id, name, prompt, interval_seconds, enabled, next_run, created_at) "
             "VALUES(?, ?, ?, ?, 1, ?, ?)",
@@ -296,11 +245,10 @@ class Database:
         return self.get_task(tid)
 
     def get_task(self, tid: str) -> dict[str, Any] | None:
-        row = self.query_one("SELECT * FROM tasks WHERE id=?", (tid,))
-        return dict(row) if row else None
+        return self.query_one("SELECT * FROM tasks WHERE id=?", (tid,))
 
     def list_tasks(self) -> list[dict[str, Any]]:
-        return [dict(r) for r in self.query("SELECT * FROM tasks ORDER BY created_at DESC")]
+        return self.query("SELECT * FROM tasks ORDER BY created_at DESC")
 
     def set_task_enabled(self, tid: str, enabled: bool) -> None:
         self.execute("UPDATE tasks SET enabled=? WHERE id=?", (1 if enabled else 0, tid))
@@ -309,10 +257,9 @@ class Database:
         self.execute("DELETE FROM tasks WHERE id=?", (tid,))
 
     def due_tasks(self, now: float) -> list[dict[str, Any]]:
-        rows = self.query(
+        return self.query(
             "SELECT * FROM tasks WHERE enabled=1 AND next_run<=? ORDER BY next_run", (now,)
         )
-        return [dict(r) for r in rows]
 
     def record_task_run(self, tid: str, status: str, result: str) -> None:
         task = self.get_task(tid)
@@ -323,13 +270,3 @@ class Database:
             "UPDATE tasks SET last_run=?, last_status=?, last_result=?, next_run=? WHERE id=?",
             (now, status, result[:2000], now + int(task["interval_seconds"]), tid),
         )
-
-    def list_activities(self, conversation_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
-        if conversation_id:
-            rows = self.query(
-                "SELECT * FROM activities WHERE conversation_id=? ORDER BY created_at DESC LIMIT ?",
-                (conversation_id, limit),
-            )
-        else:
-            rows = self.query("SELECT * FROM activities ORDER BY created_at DESC LIMIT ?", (limit,))
-        return [dict(r) for r in rows]

@@ -10,14 +10,18 @@ from typing import Any
 from ..config import settings
 from ..tools import build_default_registry
 from .crypto import SecretCipher
-from .db import Database
+from .db import create_database
 from .llm import DEFAULT_BASE_URLS, LLMClient, ProviderConfig
+from .providers import ProviderManager, build_provider_manager
 from .secrets_store import SecretStore
 
+# Defaults target the keyless Pollinations endpoint so OpenHUD works with
+# zero configuration and zero cost. The user can switch to a keyed provider
+# or a local Ollama model at any time.
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "provider": "openai",
-    "model": "gpt-4o-mini",
-    "base_url": DEFAULT_BASE_URLS["openai"],
+    "provider": "pollinations",
+    "model": "openai",
+    "base_url": DEFAULT_BASE_URLS["pollinations"],
     "temperature": 0.7,
     "max_tokens": 4096,
     "autonomy": "supervised",  # supervised | autonomous
@@ -28,10 +32,61 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "language": "pt-BR",
 }
 
+# Keyed providers, in fallback preference order. Each entry describes how to
+# build a client when a matching secret is present.
+KEYED_PROVIDERS: dict[str, dict[str, Any]] = {
+    "groq": {
+        "base_url": DEFAULT_BASE_URLS["groq"],
+        "model": "llama-3.3-70b-versatile",
+        "supports_tools": True,
+    },
+    "google": {
+        "base_url": DEFAULT_BASE_URLS["google"],
+        "model": "gemini-2.0-flash",
+        "supports_tools": True,
+    },
+    "openrouter": {
+        "base_url": DEFAULT_BASE_URLS["openrouter"],
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "supports_tools": True,
+    },
+    "openai": {
+        "base_url": DEFAULT_BASE_URLS["openai"],
+        "model": "gpt-4o-mini",
+        "supports_tools": True,
+    },
+    "anthropic": {
+        "base_url": DEFAULT_BASE_URLS["anthropic"],
+        "provider": "anthropic",
+        "model": "claude-3-5-sonnet-latest",
+        "supports_tools": True,
+    },
+    "deepseek": {
+        "base_url": DEFAULT_BASE_URLS["deepseek"],
+        "model": "deepseek-chat",
+        "supports_tools": True,
+    },
+    "cerebras": {
+        "base_url": DEFAULT_BASE_URLS["cerebras"],
+        "model": "llama-3.3-70b",
+        "supports_tools": True,
+    },
+    "mistral": {
+        "base_url": DEFAULT_BASE_URLS["mistral"],
+        "model": "mistral-large-latest",
+        "supports_tools": True,
+    },
+    "github": {
+        "base_url": DEFAULT_BASE_URLS["github"],
+        "model": "openai/gpt-4o-mini",
+        "supports_tools": True,
+    },
+}
+
 
 class Runtime:
     def __init__(self) -> None:
-        self.db = Database(settings.db_path)
+        self.db = create_database(settings.db_path, settings.database_url)
         self.cipher = SecretCipher(settings.key_path)
         self.secrets = SecretStore(self.db, self.cipher)
         self.registry = build_default_registry()
@@ -73,15 +128,12 @@ class Runtime:
     # -- LLM -------------------------------------------------------------
     def provider_config(self) -> ProviderConfig:
         s = self.get_settings()
-        provider = s.get("provider", "openai")
-        key_name = {"openai": "openai", "anthropic": "anthropic",
-                    "groq": "groq", "deepseek": "deepseek",
-                    "openrouter": "openrouter", "ollama": "ollama"}.get(provider, provider)
-        api_key = self.secrets.get(key_name)
-        base_url = s.get("base_url") or DEFAULT_BASE_URLS.get(provider, DEFAULT_BASE_URLS["openai"])
+        provider = s.get("provider", "pollinations")
+        api_key = self.secrets.get(provider)
+        base_url = s.get("base_url") or DEFAULT_BASE_URLS.get(provider, DEFAULT_BASE_URLS["pollinations"])
         return ProviderConfig(
-            provider=provider,
-            model=s.get("model", "gpt-4o-mini"),
+            provider="anthropic" if provider == "anthropic" else ("ollama" if provider == "ollama" else "openai"),
+            model=s.get("model", "openai"),
             base_url=base_url,
             api_key=api_key,
             temperature=float(s.get("temperature", 0.7)),
@@ -91,6 +143,25 @@ class Runtime:
 
     def llm_client(self) -> LLMClient:
         return LLMClient(self.provider_config())
+
+    def provider_manager(self) -> ProviderManager:
+        """Build a fresh fallback chain from the current settings and keys.
+
+        Built per turn so that newly added keys or a changed provider take
+        effect immediately without a restart.
+        """
+        s = self.get_settings()
+        provider = s.get("provider", "pollinations")
+        return build_provider_manager(
+            selected_provider=provider,
+            model=s.get("model", "openai"),
+            base_url=s.get("base_url") or DEFAULT_BASE_URLS.get(provider, DEFAULT_BASE_URLS["pollinations"]),
+            temperature=float(s.get("temperature", 0.7)),
+            max_tokens=int(s.get("max_tokens", 4096)),
+            supports_tools=bool(s.get("supports_tools", True)),
+            secret_lookup=self.secrets.get,
+            keyed_defaults=KEYED_PROVIDERS,
+        )
 
 
 runtime = Runtime()

@@ -18,13 +18,19 @@ class Settings:
         ).expanduser().resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.db_path: Path = self.data_dir / "openhud.db"
+        # Optional external database. When set (e.g. a Neon/Supabase/Aiven
+        # Postgres URL) the app uses it instead of SQLite, so data survives
+        # container redeploys. Empty means "use SQLite".
+        self.database_url: str = os.environ.get("DATABASE_URL", "").strip()
         self.key_path: Path = self.data_dir / "secret.key"
         self.workspace_dir: Path = Path(
             os.environ.get("OPENHUD_WORKSPACE", str(Path.cwd() / "workspace"))
         ).expanduser().resolve()
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
         self.host: str = os.environ.get("OPENHUD_HOST", "0.0.0.0")
-        self.port: int = int(os.environ.get("OPENHUD_PORT", "8000"))
+        # OPENHUD_PORT wins; otherwise honor the platform's PORT (Render,
+        # Railway, Fly, Cloud Run) and fall back to 8000 locally.
+        self.port: int = int(os.environ.get("OPENHUD_PORT") or os.environ.get("PORT") or "8000")
         # Hard ceilings for safety; the user can lower them in settings.
         self.max_agent_steps: int = int(os.environ.get("OPENHUD_MAX_STEPS", "25"))
         self.shell_timeout: int = int(os.environ.get("OPENHUD_SHELL_TIMEOUT", "120"))

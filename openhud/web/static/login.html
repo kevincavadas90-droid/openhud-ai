@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenHUD · Entrar</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <div class="login-brand">◆ <span>OpenHUD</span></div>
+    <p class="login-sub">IA multifuncional · acesso restrito</p>
+    <form id="login-form" autocomplete="on">
+      <label for="password">Senha de acesso</label>
+      <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required autofocus />
+      <button class="primary" type="submit" id="login-btn">Entrar</button>
+      <p id="login-error" class="login-error" role="alert"></p>
+    </form>
+    <p class="login-hint">A senha é definida pela variável de ambiente <code>OPENHUD_PASSWORD</code>.</p>
+  </main>
+  <script>
+    const form = document.getElementById("login-form");
+    const err = document.getElementById("login-error");
+    const btn = document.getElementById("login-btn");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      err.textContent = "";
+      btn.disabled = true;
+      btn.textContent = "Entrando…";
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: document.getElementById("password").value }),
+        });
+        if (res.ok) {
+          window.location.href = "/";
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        err.textContent = data.detail || "Falha ao entrar";
+      } catch (ex) {
+        err.textContent = "Erro de rede: " + ex.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Entrar";
+      }
+    });
+  </script>
+</body>
+</html>

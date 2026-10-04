@@ -5,12 +5,31 @@ are refused unless the user has explicitly enabled unrestricted mode.
 """
 from __future__ import annotations
 
-import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from .base import Tool, ToolContext, ToolResult
+
+# Runner that executes a script and, if its final statement is an expression
+# (e.g. ``21 * 2``), prints that value. This makes REPL-style snippets behave
+# as users and models expect, instead of silently producing no output.
+_PY_RUNNER = (
+    "import ast, sys\n"
+    "path = sys.argv[1]\n"
+    "code = open(path, encoding='utf-8').read()\n"
+    "tree = ast.parse(code, filename=path)\n"
+    "ns = {'__name__': '__main__'}\n"
+    "if tree.body and isinstance(tree.body[-1], ast.Expr):\n"
+    "    last = tree.body.pop()\n"
+    "    exec(compile(tree, path, 'exec'), ns)\n"
+    "    value = eval(compile(ast.Expression(last.value), path, 'eval'), ns)\n"
+    "    if value is not None:\n"
+    "        print(repr(value))\n"
+    "else:\n"
+    "    exec(compile(tree, path, 'exec'), ns)\n"
+)
 
 # Patterns that are always refused regardless of autonomy level. These are
 # destructive or affect the host beyond the sandbox. The list is deliberately
@@ -79,7 +98,10 @@ class ShellTool(Tool):
 
 class PythonTool(Tool):
     name = "run_python"
-    description = "Executa código Python em um subprocesso isolado e retorna stdout/stderr."
+    description = (
+        "Executa código Python em um subprocesso isolado e retorna stdout/stderr. "
+        "Se a última instrução for uma expressão (ex.: 21*2), o valor é impresso."
+    )
     parameters = {
         "type": "object",
         "properties": {
@@ -96,9 +118,14 @@ class PythonTool(Tool):
             return ToolResult(False, "Código vazio.")
         timeout = min(int(args.get("timeout", 60)), 600)
         ctx.log("python", f"executando {len(code)} bytes de código")
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".py", dir=str(ctx.workspace_dir), delete=False, encoding="utf-8"
+        ) as fh:
+            fh.write(code)
+            script_path = fh.name
         try:
             proc = subprocess.run(
-                [sys.executable, "-c", code],
+                [sys.executable, "-c", _PY_RUNNER, script_path],
                 cwd=str(ctx.workspace_dir),
                 capture_output=True,
                 text=True,
@@ -106,6 +133,11 @@ class PythonTool(Tool):
             )
         except subprocess.TimeoutExpired:
             return ToolResult(False, f"Código excedeu o timeout de {timeout}s.")
+        finally:
+            try:
+                Path(script_path).unlink()
+            except OSError:
+                pass
         output = (proc.stdout or "") + (("\n[stderr]\n" + proc.stderr) if proc.stderr else "")
         output = output.strip() or "(sem saída)"
         if len(output) > 20000:

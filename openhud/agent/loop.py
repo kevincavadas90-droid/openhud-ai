@@ -17,6 +17,7 @@ from typing import Any, Iterator
 
 from ..config import settings as app_settings
 from ..core.llm import LLMError
+from ..core.providers import AllProvidersFailed, Attempt
 from ..core.runtime import Runtime
 from ..tools.base import ToolContext
 from .confirm import broker
@@ -94,19 +95,30 @@ class Agent:
                 entry["tool_calls"] = m["tool_calls"]
             messages.append(entry)
 
-        client = self.runtime.llm_client()
+        manager = self.runtime.provider_manager()
         tool_specs = self.runtime.registry.specs(self.runtime.enabled_tool_names())
         ctx = self._context(conversation_id, emit)
 
         yield AgentEvent("activity", {"kind": "agent", "detail": "Iniciando execução"})
 
         for step in range(max_steps):
+            def report(attempt: Attempt) -> None:
+                kind = "provider_ok" if attempt.ok else "provider_fail"
+                db.add_activity(kind, f"{attempt.provider}: {attempt.detail}", conversation_id)
+
             try:
-                response = client.chat(messages, tools=tool_specs)
+                outcome = manager.chat(messages, tools=tool_specs, on_attempt=report)
+            except AllProvidersFailed as exc:
+                db.add_activity("error", str(exc), conversation_id)
+                yield AgentEvent("error", {"message": str(exc)})
+                return
             except LLMError as exc:
                 db.add_activity("error", str(exc), conversation_id)
                 yield AgentEvent("error", {"message": str(exc)})
                 return
+
+            response = outcome.response
+            yield AgentEvent("provider", {"provider": outcome.provider, "label": outcome.label})
 
             if response.usage:
                 db.add_activity("usage", json.dumps(response.usage), conversation_id)

@@ -80,6 +80,10 @@ def test_python_tool_runs():
     res = registry.execute("run_python", {"code": "print(6*7)"}, ctx)
     assert res.ok
     assert "42" in res.output
+    # A trailing expression is evaluated and printed, REPL-style.
+    expr = registry.execute("run_python", {"code": "21 * 2"}, ctx)
+    assert expr.ok
+    assert expr.output.strip() == "42"
 
 
 def test_shell_tool_blocks_destructive():

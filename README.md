@@ -15,11 +15,13 @@ O objetivo não é apenas conversar, mas **executar tarefas concretas**.
 | --- | --- |
 | Linguagem | Python 3.13 |
 | Framework web | FastAPI + Uvicorn |
-| Banco de dados | SQLite (WAL) |
+| Banco de dados | SQLite (WAL) ou PostgreSQL (`DATABASE_URL`) |
 | Front-end | HTML/CSS/JS puro (sem build) |
-| Provedores de modelo | OpenAI-compatível, Anthropic, Ollama/local |
+| Provedores de modelo | Cadeia de fallback com 11 provedores + Ollama local |
+| Sem chave | Pollinations (keyless) e Ollama local |
 | Execução | Terminal e Python em sandbox de workspace |
-| Testes | pytest — **20 testes, todos passando** |
+| Autenticação | Senha (`OPENHUD_PASSWORD`) + cookie de sessão assinado |
+| Testes | pytest — **29 testes, todos passando** |
 
 Nenhum código pré-existente foi encontrado no repositório: o OpenHUD foi
 construído do zero nesta estrutura.
@@ -49,11 +51,15 @@ Variáveis de ambiente úteis:
 
 | Variável | Padrão | Função |
 | --- | --- | --- |
-| `OPENHUD_PORT` | `8000` | Porta do servidor |
+| `OPENHUD_PORT` | `8000` (ou `PORT`) | Porta do servidor |
 | `OPENHUD_HOST` | `0.0.0.0` | Host do servidor |
 | `OPENHUD_DATA_DIR` | `./data` | Banco, chaves, segredos |
 | `OPENHUD_WORKSPACE` | `./workspace` | Sandbox de arquivos/execução |
 | `OPENHUD_MAX_STEPS` | `25` | Etapas máximas do agente |
+| `OPENHUD_PASSWORD` | — | Senha de acesso ao app (obrigatória em produção) |
+| `OPENHUD_SESSION_SECRET` | gerado | Segredo fixo para assinar o cookie de sessão |
+| `OPENHUD_AUTH` | `on` | `off` desliga o login (só para uso local/privado) |
+| `DATABASE_URL` | — | URL PostgreSQL; vazio usa SQLite |
 
 ---
 
@@ -61,14 +67,27 @@ Variáveis de ambiente úteis:
 
 Abra **Configurações** na interface e escolha o provedor:
 
-- **OpenAI / Groq / DeepSeek / OpenRouter / vLLM** — cole a chave em
-  *Chaves de API* (`openai`, `groq`, ...).
+- **OpenAI / Groq / DeepSeek / OpenRouter / Cerebras / Mistral / Google** —
+  cole a chave em *Chaves de API* (`openai`, `groq`, ...).
 - **Anthropic** — chave `anthropic`.
 - **Ollama (local)** — rode `ollama serve` e escolha o provedor `ollama`;
-  não precisa de chave. Ex.: modelo `llama3.1`.
+  não precisa de chave. Ex.: modelo `qwen2.5:3b`.
+- **Pollinations (sem chave)** — nenhuma chave é necessária. É o provedor
+  padrão de uma instalação nova, para que o app já funcione de imediato.
 
 A Base URL é ajustada automaticamente por provedor e pode ser sobrescrita
 para apontar a qualquer endpoint OpenAI-compatível.
+
+### Cadeia de fallback
+
+Cada turno usa uma **cadeia de provedores** em ordem de prioridade: o
+provedor escolhido primeiro, depois um provedor sem chave (Pollinations) e,
+por fim, o Ollama local. Se um provedor falhar por instabilidade
+(HTTP 5xx/erro de rede), ele é tentado novamente algumas vezes com *backoff*
+antes de passar para o próximo. Limites de uso (429/402) passam direto para
+o próximo provedor. A interface mostra **qual provedor respondeu** em cada
+mensagem, e o erro final lista cada tentativa com o motivo real — nada é
+mascarado.
 
 As chaves são **criptografadas com Fernet** (`data/secret.key`, permissão
 0600) e nunca são exibidas por completo — apenas uma prévia mascarada.
@@ -121,9 +140,11 @@ openhud/
 ├── config.py            # caminhos e variáveis de ambiente
 ├── core/
 │   ├── crypto.py        # criptografia Fernet dos segredos
-│   ├── db.py            # SQLite: conversas, memória, atividades, settings
+│   ├── db.py            # SQLite + factory de banco
+│   ├── db_pg.py         # backend PostgreSQL (mesma interface)
 │   ├── secrets_store.py # armazenamento seguro de chaves
 │   ├── llm.py           # adaptadores OpenAI-compatível e Anthropic
+│   ├── providers.py     # cadeia de fallback entre provedores
 │   └── runtime.py       # singletons e resolução de configuração
 ├── tools/               # filesystem, execução, web, memória
 ├── agent/
@@ -133,6 +154,8 @@ openhud/
 │   └── scheduler.py     # execução de tarefas recorrentes
 ├── web/
 │   ├── app.py           # API REST + SSE
+│   ├── auth.py          # senha, cookie de sessão assinado
+│   ├── ratelimit.py     # limite de tentativas
 │   └── static/          # interface web
 └── __main__.py          # ponto de entrada
 ```
@@ -147,7 +170,11 @@ via Server-Sent Events. Cada turno roda em uma thread de trabalho.
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
+| POST | `/api/login` / `/api/logout` | Iniciar/encerrar sessão |
+| GET | `/api/me` | Estado da sessão atual |
 | GET | `/api/health` | Estado e se o provedor está configurado |
+| GET | `/api/providers` | Cadeia de fallback e provedores prontos |
+| GET | `/api/models` | Provedores, modelos sugeridos e Base URLs |
 | GET/PUT | `/api/settings` | Ler/atualizar configurações |
 | GET/POST/DELETE | `/api/secrets` | Gerenciar chaves (criptografadas) |
 | GET/POST/DELETE | `/api/projects` | Projetos |
@@ -169,11 +196,15 @@ via Server-Sent Events. Cada turno roda em uma thread de trabalho.
 ```
 
 Cobrem: criptografia de segredos, persistência, sandbox de arquivos e
-bloqueio de comandos destrutivos, execução real de Python, análise de dados,
-ciclo de vida de tarefas, o laço do agente (com e sem confirmação, aprovação
-e recusa), o streaming SSE e toda a API REST. Os testes usam um **servidor
-LLM local simulado**; todo o restante (agente, ferramentas, banco, HTTP) é
-código real.
+bloqueio de comandos destrutivos, execução real de Python (incluindo o valor
+da última expressão), análise de dados, ciclo de vida de tarefas, o laço do
+agente (com e sem confirmação, aprovação e recusa), o streaming SSE e toda a
+API REST. `test_providers.py` cobre a **cadeia de fallback** (falha do
+primeiro provedor, esgotamento com relatório de todas as tentativas, montagem
+da cadeia keyless e uso da Base URL do usuário) e a **autenticação**
+(senha + token de sessão). Os testes usam **servidores HTTP locais reais**
+como LLM e como provedores; todo o restante (agente, ferramentas, banco,
+HTTP, auth) é código real, sem mocks do nosso próprio código.
 
 ---
 
@@ -186,30 +217,80 @@ comandos destrutivos continuam valendo.
 
 ---
 
-## 9. Segurança
+## 9. Autenticação
+
+Toda a aplicação fica atrás de login por senha (`OPENHUD_PASSWORD`). A sessão
+é um cookie `HttpOnly` assinado (`OPENHUD_SESSION_SECRET`), com validade de
+7 dias e `SameSite=Lax`; em HTTPS o cookie é marcado como `Secure`. Sem
+senha configurada, o OpenHUD **gera uma senha aleatória** no primeiro boot e
+a imprime no log — configure `OPENHUD_PASSWORD` para uma senha fixa.
+
+As rotas `/api/*` respondem `401` sem sessão; páginas protegidas redirecionam
+para `/login`. O endpoint de login tem limite de tentativas por IP.
+
+## 10. Segurança
 
 - Chaves criptografadas em repouso; nunca retornadas por completo.
 - Arquivos confinados ao workspace (`OPENHUD_WORKSPACE`).
 - Comandos destrutivos conhecidos são sempre recusados.
 - Ações sensíveis pedem confirmação no modo supervisionado.
+- Login por senha, cookie de sessão assinado e limite de tentativas.
 - Nenhuma tentativa de contornar autenticação de terceiros.
+
+## 10b. Implantação (hospedagem gratuita)
+
+O container expõe a porta definida por `PORT`/`OPENHUD_PORT` e guarda todo o
+estado em `OPENHUD_DATA_DIR`. Há três caminhos:
+
+1. **Docker / VPS (recomendado, permanente)**
+   ```bash
+   docker build -t openhud .
+   docker run -d --name openhud -p 8000:8000 \
+     -e OPENHUD_PASSWORD='uma-senha-forte' \
+     -v openhud-data:/data openhud
+   ```
+2. **Render (plano free)** — faça push para o GitHub, depois *New > Blueprint*
+   e aponte para `render.yaml`. O Render injeta `PORT` e gera a senha; adicione
+   um disco em `/data` para persistir o estado.
+3. **Railway / Fly.io / Cloud Run** — usam o `Dockerfile` diretamente; defina
+   `OPENHUD_PASSWORD`, `OPENHUD_SESSION_SECRET` e um volume em `/data`.
+
+Para banco permanente sem cartão de crédito, crie um Postgres gratuito em
+**Neon**, **Supabase** ou **Aiven** e defina `DATABASE_URL` — o OpenHUD passa
+a persistir conversas, memória e tarefas no Postgres automaticamente.
+
+Sem nenhuma chave de API, a instalação nova responde via **Pollinations**
+(keyless) e, se houver um Ollama local, usa-o como reforço. Para respostas
+mais confiáveis, adicione uma chave gratuita de **Groq** ou **Google AI
+Studio** em Configurações.
 
 ---
 
-## 10. Status das funcionalidades
+## 11. Status das funcionalidades
 
 ### Concluídas e verificadas
 - Agente com laço de execução, streaming e persistência.
 - 12 ferramentas reais + sistema de confirmação e autonomia.
 - Múltiplos provedores de modelo e chaves criptografadas.
+- **Cadeia de fallback** entre 11 provedores + Ollama local, com *retry* de
+  falhas transitórias e relatório honesto das tentativas.
+- **Provedor sem chave** (Pollinations) para funcionar sem configuração.
+- **Login por senha** com cookie de sessão assinado e limite de tentativas.
+- **PostgreSQL** opcional via `DATABASE_URL` (testado contra Postgres real).
 - Memória de longo prazo, histórico, projetos e registro de atividades.
 - Análise de dados (CSV/JSON) e tarefas agendadas em segundo plano.
-- Interface web completa e responsiva.
-- Suíte de 23 testes automatizados, todos passando.
+- Interface web completa e responsiva (com indicador do provedor e logout).
+- `Dockerfile` + `render.yaml` para implantação gratuita.
+- Suíte de **29 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
-- **Chave de API** de um provedor (ou Ollama local) para gerar respostas.
+- **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas
+  mais confiáveis; sem ela, usa-se Pollinations (keyless) ou Ollama local.
 - **Chave do Brave Search** é opcional; sem ela, a busca usa DuckDuckGo.
+- **URL permanente**: depende de uma conta em Render/Railway/Fly ou de um
+  servidor próprio — o `Dockerfile` está pronto para qualquer um deles.
+- **Banco permanente**: crie um Postgres gratuito (Neon/Supabase/Aiven) e
+  defina `DATABASE_URL`; sem isso o estado fica no disco local.
 - Integrações com serviços de terceiros (e-mail, planilhas na nuvem,
   agendamento) não estão incluídas por padrão — o sistema é extensível:
   adicione novas ferramentas em `openhud/tools/` e registre-as em

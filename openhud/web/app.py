@@ -12,8 +12,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -22,7 +22,13 @@ from ..agent.loop import Agent
 from ..agent.scheduler import scheduler
 from ..config import settings
 from ..core.llm import DEFAULT_BASE_URLS
-from ..core.runtime import runtime
+from ..core.providers import KEYLESS_PROVIDERS
+from ..core.runtime import KEYED_PROVIDERS, runtime
+from .auth import COOKIE_NAME, SESSION_TTL, AuthManager
+from .ratelimit import chat_limiter, login_limiter
+
+auth = AuthManager(settings.data_dir)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -31,27 +37,50 @@ async def lifespan(_: FastAPI):
     scheduler.stop()
 
 
-app = FastAPI(title="OpenHUD", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="OpenHUD", version="2.0.0", lifespan=lifespan)
 agent = Agent(runtime)
 db = runtime.db
 
+
+# Public paths that never require a session (login flow + assets + health).
+PUBLIC_PATHS = {"/login", "/api/login", "/api/health", "/favicon.ico"}
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def require_auth(request: Request, call_next):
+    path = request.url.path
+    if not auth.enabled or path in PUBLIC_PATHS or path.startswith("/static/"):
+        return await call_next(request)
+    if auth.verify_token(request.cookies.get(COOKIE_NAME)):
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"detail": "Não autenticado"}, status_code=401)
+    # Browser navigation to a protected page -> send to login.
+    return RedirectResponse("/login", status_code=302)
+
 MODEL_SUGGESTIONS: dict[str, list[str]] = {
+    "pollinations": ["openai", "openai-fast"],
     "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o4-mini"],
     "anthropic": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
-    "groq": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+    "groq": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b"],
+    "google": ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
     "deepseek": ["deepseek-chat", "deepseek-reasoner"],
-    "openrouter": ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.3-70b-instruct"],
+    "openrouter": ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet"],
+    "cerebras": ["llama-3.3-70b", "llama3.1-8b"],
+    "mistral": ["mistral-large-latest", "mistral-small-latest"],
+    "github": ["openai/gpt-4o-mini", "openai/gpt-4o"],
     "ollama": ["llama3.1", "qwen2.5", "mistral", "codellama"],
 }
 
-PROVIDER_KEYS = {
-    "openai": "openai",
-    "anthropic": "anthropic",
-    "groq": "groq",
-    "deepseek": "deepseek",
-    "openrouter": "openrouter",
-    "ollama": "ollama",
-}
+# Providers that are usable with no API key at all.
+KEYLESS_NAMES = set(KEYLESS_PROVIDERS) | {"ollama"}
 
 
 # --------------------------------------------------------------------------
@@ -113,14 +142,79 @@ class TaskTogglePayload(BaseModel):
     enabled: bool
 
 
+class LoginPayload(BaseModel):
+    password: str
+
+
+# --------------------------------------------------------------------------
+# auth
+# --------------------------------------------------------------------------
+@app.post("/api/login")
+def login(payload: LoginPayload, request: Request) -> JSONResponse:
+    ip = _client_ip(request)
+    if not login_limiter.allow(ip):
+        raise HTTPException(429, "Muitas tentativas. Tente novamente em alguns minutos.")
+    if not auth.verify_password(payload.password):
+        raise HTTPException(401, "Senha incorreta")
+    token = auth.issue_token()
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(
+        COOKIE_NAME, token, max_age=SESSION_TTL, httponly=True, samesite="lax",
+        secure=bool(request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"),
+        path="/",
+    )
+    return resp
+
+
+@app.post("/api/logout")
+def logout() -> JSONResponse:
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(COOKIE_NAME, path="/")
+    return resp
+
+
+@app.get("/api/me")
+def me(request: Request) -> dict[str, Any]:
+    return {"authenticated": auth.verify_token(request.cookies.get(COOKIE_NAME))}
+
+
+@app.get("/login")
+def login_page() -> FileResponse:
+    return FileResponse(settings.static_dir / "login.html")
+
+
 # --------------------------------------------------------------------------
 # settings & secrets
 # --------------------------------------------------------------------------
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     s = runtime.get_settings()
-    configured = bool(runtime.secrets.get(PROVIDER_KEYS.get(s["provider"], s["provider"]))) or s["provider"] == "ollama"
-    return {"status": "ok", "provider": s["provider"], "model": s["model"], "configured": configured}
+    configured = s["provider"] in KEYLESS_NAMES or bool(runtime.secrets.get(s["provider"]))
+    return {
+        "status": "ok",
+        "provider": s["provider"],
+        "model": s["model"],
+        "configured": configured,
+        "auth": auth.enabled,
+    }
+
+
+@app.get("/api/providers")
+def providers() -> dict[str, Any]:
+    """Show the fallback chain and which providers are ready to answer."""
+    manager = runtime.provider_manager()
+    configured_keys = set(runtime.secrets.names())
+    chain = [
+        {"name": e.name, "label": e.label, "priority": e.priority}
+        for e in manager.entries()
+    ]
+    return {
+        "selected": runtime.get_settings()["provider"],
+        "keyless": sorted(KEYLESS_NAMES),
+        "configured_keys": sorted(configured_keys),
+        "available": list(KEYED_PROVIDERS),
+        "chain": chain,
+    }
 
 
 @app.get("/api/settings")
@@ -205,7 +299,9 @@ def get_messages(cid: str) -> list[dict[str, Any]]:
 
 
 @app.post("/api/conversations/{cid}/messages")
-def post_message(cid: str, payload: MessagePayload) -> StreamingResponse:
+def post_message(cid: str, payload: MessagePayload, request: Request) -> StreamingResponse:
+    if not chat_limiter.allow(_client_ip(request)):
+        raise HTTPException(429, "Muitas mensagens em pouco tempo. Aguarde alguns segundos.")
     conv = db.get_conversation(cid)
     if not conv:
         raise HTTPException(404, "Conversa não encontrada")
@@ -270,8 +366,12 @@ def list_tools() -> list[dict[str, Any]]:
 
 @app.get("/api/models")
 def list_models() -> dict[str, Any]:
-    return {"providers": list(MODEL_SUGGESTIONS), "suggestions": MODEL_SUGGESTIONS,
-            "base_urls": DEFAULT_BASE_URLS}
+    return {
+        "providers": list(MODEL_SUGGESTIONS),
+        "suggestions": MODEL_SUGGESTIONS,
+        "base_urls": DEFAULT_BASE_URLS,
+        "keyless": sorted(KEYLESS_NAMES),
+    }
 
 
 @app.get("/api/memories")

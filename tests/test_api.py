@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 _TMP = tempfile.mkdtemp(prefix="openhud-api-")
 os.environ["OPENHUD_DATA_DIR"] = str(Path(_TMP) / "data")
 os.environ["OPENHUD_WORKSPACE"] = str(Path(_TMP) / "workspace")
+os.environ["OPENHUD_PASSWORD"] = "test-password"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -26,6 +27,8 @@ from openhud.core.runtime import runtime  # noqa: E402
 from openhud.web.app import app  # noqa: E402
 
 client = TestClient(app)
+# The whole API is behind auth; establish a real session for the tests.
+assert client.post("/api/login", json={"password": "test-password"}).status_code == 200
 
 
 class MockLLM(BaseHTTPRequestHandler):
@@ -59,13 +62,30 @@ FINAL = [{"choices": [{"message": {"role": "assistant", "content": "pronto"}, "f
 
 
 def test_health_and_settings_roundtrip():
-    assert client.get("/api/health").json()["status"] == "ok"
+    health = client.get("/api/health").json()
+    assert health["status"] == "ok"
+    assert "provider" in health and "configured" in health
+
+    # The keyless provider needs no API key, so it is always configured.
+    client.put("/api/settings", json={"provider": "pollinations", "model": "openai"})
+    assert client.get("/api/health").json()["configured"] is True
+
     r = client.put("/api/settings", json={"provider": "ollama", "model": "llama3.1"})
     body = r.json()
     assert body["provider"] == "ollama"
     assert body["base_url"] == "http://localhost:11434/v1"
     client.put("/api/settings", json={"provider": "openai", "model": "gpt-4o-mini",
                                       "base_url": "https://api.openai.com/v1"})
+
+
+def test_auth_required_and_rejected():
+    anon = TestClient(app)
+    assert anon.get("/api/settings").status_code == 401
+    assert anon.post("/api/login", json={"password": "wrong"}).status_code == 401
+    # A protected page redirects the browser to the login screen.
+    page = anon.get("/", follow_redirects=False)
+    assert page.status_code == 302
+    assert page.headers["location"] == "/login"
 
 
 def test_secrets_never_return_full_value():
