@@ -15,3 +15,7 @@ build/
 *.spec
 installer/Output/
 *.exe
+
+# Build artifacts (generated)
+OpenHUD-AI-Complete-*.zip
+OpenHUD-AI-Complete-*.zip.sha256
