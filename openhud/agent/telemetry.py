@@ -89,6 +89,20 @@ def _gpu_nvml() -> list[dict[str, Any]]:
     return out
 
 
+def _gpu_detect() -> list[dict[str, Any]]:
+    """Multi-vendor GPU detection (NVIDIA via NVML + AMD/Intel identity).
+
+    Falls back to NVML-only if the new module is unavailable, so behaviour never
+    regresses.
+    """
+    try:
+        from .gpu import detect_gpus
+
+        return detect_gpus()
+    except Exception:
+        return _gpu_nvml()
+
+
 def _cpu_temp() -> float | None:
     if psutil is None:
         return None
@@ -225,7 +239,7 @@ class TelemetryCollector:
         except Exception:
             procs = []
 
-        gpus = _gpu_nvml()
+        gpus = _gpu_detect()
 
         return {
             "ts": now,

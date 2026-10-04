@@ -27,6 +27,7 @@ def _hidden_imports() -> list[str]:
         "uvicorn.lifespan", "uvicorn.lifespan.on", "websockets", "psutil", "pynvml",
         "openhud.web.app", "openhud.web.ai_api", "openhud.web.assistant_api",
         "openhud.web.agent_api", "openhud.web.trading_api", "openhud.desktop.app",
+        "openhud.agent.gpu",
     ]
     for name in ("mss", "PIL", "pytesseract", "pyautogui", "pygetwindow", "pyperclip"):
         mods.append(name)

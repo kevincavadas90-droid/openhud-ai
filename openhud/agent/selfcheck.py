@@ -329,15 +329,31 @@ def check_gpu(rep: Report) -> None:
     gpus = metrics.get("gpu") or []
     if gpus:
         g = gpus[0]
-        rep.add("GPU", PASS,
-                f"{g.get('name', 'GPU')} · uso {g.get('utilization')}% · "
-                f"VRAM {g.get('memory_used_mb')}/{g.get('memory_total_mb')} MB")
+        vendor = g.get("vendor") or "unknown"
+        name = g.get("name", "GPU")
+        util = g.get("util_percent")
+        mem_used = g.get("mem_used_mb")
+        mem_total = g.get("mem_total_mb")
+        detail = name
+        if vendor != "unknown":
+            detail += f" ({vendor})"
+        if util is not None:
+            detail += f" · uso {util:.0f}%"
+        if mem_used is not None and mem_total is not None:
+            detail += f" · VRAM {mem_used:.0f}/{mem_total:.0f} MB"
+        # Identity-only detection (e.g. AMD/Intel without a live metric source)
+        # is a WARNING, not a fabricated PASS: we know the card, not its load.
+        if util is None and mem_used is None:
+            rep.add("GPU", WARNING, detail + " · métricas ao vivo indisponíveis.",
+                    "O modelo foi identificado; uso/VRAM/temperatura não puderam ser lidos.")
+        else:
+            rep.add("GPU", PASS, detail)
     elif _has_module("pynvml"):
-        rep.add("GPU", WARNING, "'pynvml' instalado, mas nenhuma GPU NVIDIA detectada.",
-                "Sem GPU NVIDIA, o diagnóstico informa 'não detectada' em vez de inventar.")
+        rep.add("GPU", WARNING, "GPU não detectada (nenhuma NVIDIA via NVML e nenhuma AMD/Intel identificada).",
+                "O diagnóstico informa 'não detectada' em vez de inventar dados.")
     else:
-        rep.add("GPU", NOT_INSTALLED, "sem 'nvidia-ml-py' / GPU NVIDIA.",
-                "Opcional: pip install nvidia-ml-py")
+        rep.add("GPU", NOT_INSTALLED, "GPU não detectada.",
+                "NVIDIA: pip install nvidia-ml-py. AMD/Intel: a identificação usa o sistema.")
 
     cpu = metrics.get("cpu") or {}
     cpu_name = platform.processor() or platform.machine()
