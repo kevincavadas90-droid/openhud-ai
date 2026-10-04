@@ -1869,6 +1869,20 @@ function startDashTimer(on) {
 }
 
 /* ---------------- Wiring ---------------- */
+async function loadAccountChip() {
+  try {
+    const d = await api("/api/account/me");
+    if (!d || !d.authenticated) return;
+    const u = d.user;
+    const chip = $("#user-chip");
+    if (!chip) return;
+    chip.classList.remove("hidden");
+    $("#uc-name").textContent = u.name || u.email.split("@")[0];
+    $("#uc-mail").textContent = u.email;
+    $("#uc-avatar").textContent = (u.name || u.email).trim().charAt(0).toUpperCase() || "?";
+  } catch (_) { /* operator-only mode: no account chip */ }
+}
+
 function init() {
   $$(".nav-btn").forEach((b) => (b.onclick = () => switchView(b.dataset.view)));
   document.addEventListener("click", (e) => {
@@ -1927,9 +1941,11 @@ function init() {
   $("#s-save").onclick = saveSettings;
   $("#secret-save").onclick = saveSecret;
   $("#logout").onclick = async () => {
-    await api("/api/logout", { method: "POST" });
+    try { await api("/api/account/logout", { method: "POST" }); } catch (_) {}
+    try { await api("/api/logout", { method: "POST" }); } catch (_) {}
     window.location.href = "/login";
   };
+  loadAccountChip();
   $("#pc-refresh").onclick = refreshDashboard;
   $("#pair-generate").onclick = generatePairCode;
   $("#game-analyze").onclick = analyzeGame;

@@ -5,4 +5,4 @@ files, web search, browser, HTTP, data), persistent memory, multi-provider
 model configuration and a modern web interface.
 """
 
-__version__ = "5.0.0"
+__version__ = "5.1.0"

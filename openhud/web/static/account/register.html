@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Criar conta — OpenHUD AI</title>
+<meta name="description" content="Crie a sua conta OpenHUD AI." />
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" href="/static/site/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/static/site/site.css?v=5.1.0" />
+</head>
+<body>
+<header class="site">
+  <div class="wrap nav" id="nav">
+    <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="26" height="26" /> OpenHUD AI</a>
+    <button class="btn ghost nav-toggle" id="nav-toggle" aria-label="Abrir menu">Menu</button>
+    <nav class="nav-links">
+      <a href="/">Início</a><a href="/features">Recursos</a><a href="/download">Download</a><a href="/pricing">Preços</a>
+    </nav>
+    <div class="nav-actions"><a class="btn ghost" href="/login">Entrar</a></div>
+  </div>
+</header>
+
+<main class="auth-wrap">
+  <div class="wrap">
+    <form class="form-card" id="register-form" novalidate>
+      <h1>Criar conta</h1>
+      <p class="sub">Leva menos de um minuto. Sem cartão de crédito.</p>
+      <div class="form-notice" id="notice" hidden></div>
+      <div class="field">
+        <label for="name">Nome</label>
+        <input id="name" name="name" type="text" autocomplete="name" placeholder="Como devemos chamar você" />
+        <div class="err" data-error="name"></div>
+      </div>
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" />
+        <div class="err" data-error="email"></div>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" required placeholder="Pelo menos 8 caracteres" />
+        <div class="err" data-error="password"></div>
+      </div>
+      <button class="btn lg block" type="submit" id="submit">Criar conta</button>
+      <p class="form-foot">Já tem conta? <a href="/login">Entrar</a></p>
+    </form>
+  </div>
+</main>
+
+<footer class="site"><div class="wrap"><p class="fine">OpenHUD AI · Este site não coleta dados sem a sua ação.</p></div></footer>
+<script src="/static/site/site.js?v=5.1.0"></script>
+<script src="/static/account/account.js?v=5.1.0"></script>
+<script>
+  const { api, notice, fieldError, clearErrors, setBusy } = window.OpenHUD;
+  const form = document.getElementById("register-form");
+  const nEl = document.getElementById("notice");
+  const btn = document.getElementById("submit");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearErrors(form); notice(nEl, "");
+    const name = form.name.value.trim();
+    const email = form.email.value.trim();
+    const password = form.password.value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { fieldError(form, "email", "Informe um e-mail válido."); return; }
+    if (password.length < 8) { fieldError(form, "password", "A senha precisa ter pelo menos 8 caracteres."); return; }
+    setBusy(btn, true, "Criando…");
+    try {
+      const d = await api("/api/account/register", { name, email, password });
+      notice(nEl, "Conta criada! Redirecionando…", "ok");
+      setTimeout(() => (window.location.href = "/app"), 600);
+    } catch (err) {
+      if (err.status === 429) notice(nEl, err.message, "err");
+      else if (/e-mail/i.test(err.message)) fieldError(form, "email", err.message);
+      else if (/senha/i.test(err.message)) fieldError(form, "password", err.message);
+      else notice(nEl, err.message, "err");
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+</script>
+</body>
+</html>

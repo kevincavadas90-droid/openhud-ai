@@ -245,3 +245,12 @@ def changelog_summary(limit: int = 4) -> str:
     if not entries:
         return ""
     return "; ".join(entries[0]["items"][:limit])
+
+
+def donation_url() -> str | None:
+    """A real donation link, only when the operator configured one.
+
+    The pricing page must never invent a payment address, so this returns
+    ``None`` unless ``OPENHUD_DONATION_URL`` is set.
+    """
+    return os.environ.get("OPENHUD_DONATION_URL", "").strip() or None

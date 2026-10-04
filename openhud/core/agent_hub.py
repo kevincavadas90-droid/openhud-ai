@@ -198,10 +198,10 @@ class AgentHub:
         self.db.set_setting("agent_devices", [asdict(d) for d in self._devices.values()])
 
     # -- pairing ---------------------------------------------------------
-    def create_pairing_code(self) -> dict[str, Any]:
+    def create_pairing_code(self, user_id: str | None = None) -> dict[str, Any]:
         code = f"{secrets.randbelow(10**6):06d}"
         with self._lock:
-            self._pairing[code] = {"created_at": _now(), "used": False}
+            self._pairing[code] = {"created_at": _now(), "used": False, "user_id": user_id}
             # prune expired codes
             for c, meta in list(self._pairing.items()):
                 if _now() - meta["created_at"] > PAIRING_TTL_SECONDS:
@@ -215,6 +215,24 @@ class AgentHub:
             if not meta or meta["used"] or (_now() - meta["created_at"]) > PAIRING_TTL_SECONDS:
                 raise ValueError("Código de pareamento inválido ou expirado.")
             meta["used"] = True
+            token = secrets.token_urlsafe(32)
+            dev = Device(
+                id=uuid.uuid4().hex[:16],
+                name=(name or "Meu PC")[:64],
+                platform=(platform or "unknown")[:32],
+                token_hash=_hash_token(token),
+                created_at=_now(),
+                last_seen=_now(),
+                info=info or {},
+            )
+            self._devices[dev.id] = dev
+            self._save()
+        return {"device_id": dev.id, "token": token, "name": dev.name, "user_id": meta.get("user_id")}
+
+    def register_device(self, name: str, platform: str, info: dict[str, Any]) -> dict[str, Any]:
+        """Create a device directly (used by the desktop app after it logs in
+        with the account API). Returns the token exactly once."""
+        with self._lock:
             token = secrets.token_urlsafe(32)
             dev = Device(
                 id=uuid.uuid4().hex[:16],

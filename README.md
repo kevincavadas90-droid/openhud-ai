@@ -20,9 +20,9 @@ O objetivo não é apenas conversar, mas **executar tarefas concretas**.
 | Provedores de modelo | Cadeia de fallback com 11 provedores + Ollama local |
 | Sem chave | Pollinations (keyless) e Ollama local |
 | Execução | Terminal e Python em sandbox de workspace |
-| Autenticação | Senha (`OPENHUD_PASSWORD`) + cookie de sessão assinado |
-| Testes | pytest — **175 testes, todos passando** |
-| Site público | Páginas de marketing servidas pelo mesmo app (sem login) |
+| Autenticação | Contas de usuário (e-mail/senha) **ou** senha de operador (`OPENHUD_PASSWORD`) |
+| Testes | pytest — **208 testes, todos passando** |
+| Site público | Páginas de marketing + cadastro/login servidas pelo mesmo app |
 | Distribuição | Instalador Windows (Inno Setup) + GitHub Releases / URL externa |
 
 Nenhum código pré-existente foi encontrado no repositório: o OpenHUD foi
@@ -366,16 +366,34 @@ comandos destrutivos continuam valendo.
 
 ---
 
-## 9. Autenticação
+## 9. Autenticação e contas
 
-Toda a aplicação fica atrás de login por senha (`OPENHUD_PASSWORD`). A sessão
-é um cookie `HttpOnly` assinado (`OPENHUD_SESSION_SECRET`), com validade de
-7 dias e `SameSite=Lax`; em HTTPS o cookie é marcado como `Secure`. Sem
-senha configurada, o OpenHUD **gera uma senha aleatória** no primeiro boot e
-a imprime no log — configure `OPENHUD_PASSWORD` para uma senha fixa.
+O OpenHUD aceita **dois modos** de acesso, que coexistem:
+
+1. **Contas de usuário** (padrão para um produto público). O visitante cria
+   conta em `/register`, entra em `/login` e gerencia tudo em `/account`:
+   nome, senha, sessões ativas, e-mail verificado e **seus computadores**
+   (dispositivos pareados à conta). Senhas usam PBKDF2-SHA256 com salt
+   aleatório; sessões são tokens aleatórios guardados apenas como hash, com
+   validade e revogação. Recuperação de senha por token de uso único e
+   verificação de e-mail. Fluxos de conta têm limite de tentativas por IP e
+   proteção CSRF (cookie `openhud_csrf` + cabeçalho `X-CSRF-Token`).
+2. **Senha de operador** (`OPENHUD_PASSWORD`): acesso único de administrador,
+   útil para uso local ou servidor privado. A sessão é um cookie `HttpOnly`
+   assinado (`OPENHUD_SESSION_SECRET`), com validade de 7 dias e `SameSite=Lax`;
+   em HTTPS o cookie é marcado como `Secure`. Sem senha configurada, o OpenHUD
+   **gera uma senha aleatória** no primeiro boot e a imprime no log.
 
 As rotas `/api/*` respondem `401` sem sessão; páginas protegidas redirecionam
-para `/login`. O endpoint de login tem limite de tentativas por IP.
+para `/login`. As páginas públicas (site, cadastro, login, recuperação) ficam
+fora do login. Cada dispositivo pareado pertence à conta que o registrou e só
+essa conta o vê ou controla.
+
+O **aplicativo desktop** entra com a mesma conta do site: em
+`OpenHUD --login --server <url> --email <e-mail>` (a senha é usada uma vez e
+nunca gravada), ou pelo assistente de primeira execução. Ele guarda apenas o
+**token do dispositivo**, que pode ser revogado a qualquer momento em
+`/account`.
 
 ## 10. Segurança
 
@@ -383,7 +401,9 @@ para `/login`. O endpoint de login tem limite de tentativas por IP.
 - Arquivos confinados ao workspace (`OPENHUD_WORKSPACE`).
 - Comandos destrutivos conhecidos são sempre recusados.
 - Ações sensíveis pedem confirmação no modo supervisionado.
-- Login por senha, cookie de sessão assinado e limite de tentativas.
+- Contas com senha forte obrigatória, PBKDF2-SHA256, sessões com hash,
+  CSRF, limite de tentativas e recuperação por token de uso único.
+- Dispositivos vinculados à conta; pareamento e revogação auditáveis.
 - Nenhuma tentativa de contornar autenticação de terceiros.
 
 ## 10b. Implantação (hospedagem gratuita)
@@ -724,6 +744,46 @@ python tools\make_release.py         :: release.json com tamanho + SHA-256 reais
 
 ---
 
+## 10g. Fase 7 — Contas de usuário e produto real
+
+O OpenHUD deixou de ser uma ferramenta de senha única e passou a ser um
+**produto multiusuário**:
+
+### Contas
+- Cadastro (`/register`), login (`/login`), recuperação (`/forgot-password`),
+  redefinição (`/reset-password`) e painel da conta (`/account`).
+- Senhas com PBKDF2-SHA256 (salt aleatório por usuário) e política de senha
+  forte; nunca gravadas em claro nem registradas em log.
+- Sessões: token aleatório guardado só como hash, com validade, listagem e
+  revogação individual em `/account`.
+- Recuperação por token de uso único (expira) e verificação de e-mail.
+- CSRF em todas as mutações (cookie `openhud_csrf` + `X-CSRF-Token`) e limite
+  de tentativas por IP nos fluxos sensíveis.
+- Exclusão de conta (LGPD) com confirmação por senha + palavra-chave, apagando
+  sessões, tokens e vínculos de dispositivo.
+
+### Dispositivos do usuário
+- Cada computador pareado pertence à conta que o registrou; o hub passou a
+  guardar o vínculo conta↔dispositivo.
+- O **app Windows entra com a mesma conta do site**:
+  `OpenHUD --login --server <url> --email <e-mail>` ou pelo assistente de
+  primeira execução. Ele guarda apenas o token do dispositivo (revogável),
+  nunca a senha.
+- `/account` lista, desvincula e revoga os computadores do usuário.
+
+### E-mail
+- `openhud/core/mail.py` é dirigido por variáveis de ambiente
+  (`OPENHUD_SMTP_*`). Sem SMTP configurado, ele **não finge** ter enviado:
+  registra o link de verificação/recuperação no log e devolve
+  `email_sent=false`. Com `OPENHUD_EXPOSE_RESET_LINK=1` (apenas para testes),
+  o link é retornado pela API.
+
+### Doações
+- `openhud/core/release.py` expõe uma URL de doação opcional
+  (`OPENHUD_DONATION_URL`), mostrada no site e na conta sem inventar valores.
+
+---
+
 ## 11. Status das funcionalidades
 
 ### Concluídas e verificadas
@@ -784,7 +844,17 @@ python tools\make_release.py         :: release.json com tamanho + SHA-256 reais
 - **Cadeia de fallback** entre 11 provedores + Ollama local, com *retry* de
   falhas transitórias e relatório honesto das tentativas.
 - **Provedor sem chave** (Pollinations) para funcionar sem configuração.
-- **Login por senha** com cookie de sessão assinado e limite de tentativas.
+- **Fase 7 — Contas de usuário e produto real**:
+  - contas multiusuário (cadastro/login/logout/recuperação/verificação de
+    e-mail/troca de senha/exclusão) com PBKDF2-SHA256, sessões com hash,
+    CSRF e limite de tentativas;
+  - dispositivos vinculados à conta: o app Windows entra com a mesma conta do
+    site e guarda só o token do dispositivo;
+  - site público com navegação ciente de sessão, páginas de conta e URL de
+    doação opcional;
+  - e-mail dirigido por ambiente, honesto sobre envio real.
+- **Login por senha de operador** (`OPENHUD_PASSWORD`) mantido como modo
+  alternativo, com cookie de sessão assinado e limite de tentativas.
 - **PostgreSQL** opcional via `DATABASE_URL` (testado contra Postgres real).
 - Memória de longo prazo, histórico, projetos e registro de atividades.
 - Análise de dados (CSV/JSON) e tarefas agendadas em segundo plano.
@@ -792,11 +862,17 @@ python tools\make_release.py         :: release.json com tamanho + SHA-256 reais
   conexão, chat, Codex, imagens, vídeo, plugins, inteligência, privacidade,
   admin, com indicador do provedor/modo e logout).
 - `Dockerfile` + `render.yaml`; **build do container validado** neste ambiente.
-- Suíte de **175 testes** automatizados, todos passando.
+- Suíte de **208 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
 - **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas
   mais confiáveis; sem ela, usa-se Pollinations (keyless) ou Ollama local.
+- **Envio de e-mail** (verificação e recuperação de senha) exige SMTP:
+  defina `OPENHUD_SMTP_HOST`, `OPENHUD_SMTP_PORT`, `OPENHUD_SMTP_USER`,
+  `OPENHUD_SMTP_PASSWORD` e `OPENHUD_SMTP_FROM`. Sem isso, o link é apenas
+  registrado no log (`email_sent=false`) — nada é enviado de verdade.
+- **URL de doação** é opcional: defina `OPENHUD_DONATION_URL` para exibir o
+  botão no site/conta; sem ela, nenhum valor é inventado.
 - **Visão de tela e controle do PC**: exigem um PC pareado com as permissões
   `screen`/`control` e as bibliotecas nativas (`mss`, `pytesseract`,
   `pyautogui`, `pynput`, `pygetwindow`, `pyperclip`). Sem isso, os endpoints

@@ -14,8 +14,20 @@ import pytest
 def _reset_rate_limiters():
     from openhud.web import ratelimit
 
-    ratelimit.login_limiter._hits.clear()
-    ratelimit.chat_limiter._hits.clear()
+    for limiter in (
+        ratelimit.login_limiter,
+        ratelimit.chat_limiter,
+        ratelimit.register_limiter,
+        ratelimit.reset_limiter,
+        ratelimit.account_limiter,
+    ):
+        limiter._hits.clear()
     yield
-    ratelimit.login_limiter._hits.clear()
-    ratelimit.chat_limiter._hits.clear()
+    for limiter in (
+        ratelimit.login_limiter,
+        ratelimit.chat_limiter,
+        ratelimit.register_limiter,
+        ratelimit.reset_limiter,
+        ratelimit.account_limiter,
+    ):
+        limiter._hits.clear()

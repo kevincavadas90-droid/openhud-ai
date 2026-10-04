@@ -25,6 +25,8 @@ from ..core.agent_hub import init_hub
 from ..core.llm import DEFAULT_BASE_URLS
 from ..core.providers import KEYLESS_PROVIDERS
 from ..core.runtime import KEYED_PROVIDERS, runtime
+from .accounts_api import ACCOUNT_PUBLIC_PATHS, init_accounts
+from .accounts_api import router as accounts_router
 from .agent_api import router as agent_router
 from .ai_api import router as ai_router
 from .assistant_api import router as assistant_router
@@ -35,6 +37,7 @@ from .trading_api import router as trading_router
 
 auth = AuthManager(settings.data_dir)
 hub = init_hub(runtime.db)
+accounts = init_accounts(runtime.db)
 
 
 @asynccontextmanager
@@ -46,11 +49,12 @@ async def lifespan(_: FastAPI):
     runtime.job_queue.stop()
 
 
-app = FastAPI(title="OpenHUD AI", version="5.0.0", lifespan=lifespan)
+app = FastAPI(title="OpenHUD AI", version="5.1.0", lifespan=lifespan)
 app.include_router(agent_router)
 app.include_router(trading_router)
 app.include_router(ai_router)
 app.include_router(assistant_router)
+app.include_router(accounts_router)
 app.include_router(site_router)
 agent = Agent(runtime)
 db = runtime.db
@@ -60,7 +64,7 @@ db = runtime.db
 # assets + health). The site router lists its own public paths so they stay in
 # sync in one place.
 PUBLIC_PATHS = {"/login", "/api/login", "/api/health", "/health", "/ready",
-                "/favicon.ico", "/ws/agent"} | PUBLIC_SITE_PATHS
+                "/favicon.ico", "/ws/agent"} | PUBLIC_SITE_PATHS | ACCOUNT_PUBLIC_PATHS
 
 
 def _client_ip(request: Request) -> str:
@@ -76,6 +80,11 @@ async def require_auth(request: Request, call_next):
     if not auth.enabled or path in PUBLIC_PATHS or path.startswith("/static/"):
         return await call_next(request)
     if auth.verify_token(request.cookies.get(COOKIE_NAME)):
+        return await call_next(request)
+    # A signed-in user account also unlocks the app (multi-user deployment).
+    from .accounts_api import current_user
+
+    if current_user(request) is not None:
         return await call_next(request)
     if path.startswith("/api/"):
         return JSONResponse({"detail": "Não autenticado"}, status_code=401)

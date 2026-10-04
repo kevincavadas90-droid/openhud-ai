@@ -119,6 +119,56 @@ CREATE TABLE IF NOT EXISTS voice_history (
     created_at      REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_voice_conv ON voice_history(conversation_id, created_at);
+CREATE TABLE IF NOT EXISTS users (
+    id             TEXT PRIMARY KEY,
+    email          TEXT NOT NULL UNIQUE,
+    name           TEXT NOT NULL DEFAULT '',
+    password_hash  TEXT NOT NULL,
+    email_verified INTEGER NOT NULL DEFAULT 0,
+    status         TEXT NOT NULL DEFAULT 'active',
+    created_at     REAL NOT NULL,
+    updated_at     REAL NOT NULL,
+    last_login     REAL
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    last_seen  REAL NOT NULL,
+    user_agent TEXT NOT NULL DEFAULT '',
+    ip         TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON user_sessions(token_hash);
+CREATE TABLE IF NOT EXISTS password_resets (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    used       INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_resets_token ON password_resets(token_hash);
+CREATE TABLE IF NOT EXISTS email_verifications (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    used       INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_verify_token ON email_verifications(token_hash);
+CREATE TABLE IF NOT EXISTS user_devices (
+    user_id   TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    name      TEXT NOT NULL DEFAULT '',
+    linked_at REAL NOT NULL,
+    PRIMARY KEY (user_id, device_id)
+);
+CREATE INDEX IF NOT EXISTS idx_userdevices_device ON user_devices(device_id);
 """
 
 

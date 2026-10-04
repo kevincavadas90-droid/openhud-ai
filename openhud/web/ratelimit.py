@@ -40,3 +40,8 @@ class RateLimiter:
 
 login_limiter = RateLimiter(limit=8, window_seconds=300)   # 8 tentativas / 5 min
 chat_limiter = RateLimiter(limit=30, window_seconds=60)    # 30 mensagens / min
+# Account flows get their own windows so a burst on one endpoint cannot lock
+# the others.
+register_limiter = RateLimiter(limit=6, window_seconds=3600)   # 6 contas / hora / IP
+reset_limiter = RateLimiter(limit=6, window_seconds=900)       # 6 pedidos / 15 min / IP
+account_limiter = RateLimiter(limit=20, window_seconds=300)    # mutações / 5 min / IP

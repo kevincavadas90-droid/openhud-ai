@@ -307,3 +307,17 @@ body.a11y-high-contrast {
   --text: #fff; --muted: #ddd; --accent: #ffd400; --accent-2: #ffd400;
 }
 body.a11y-high-contrast a, body.a11y-high-contrast .nav-btn.active { color: #000; }
+
+/* Account chip + sidebar footer (multi-user mode) */
+.user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--border); }
+.uc-avatar {
+  width: 32px; height: 32px; flex: 0 0 auto; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2, #8a6bf0));
+}
+.uc-info { min-width: 0; }
+.uc-name { font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uc-mail { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-foot { display: flex; gap: 8px; align-items: center; }
+.sidebar-foot a { flex: 1; text-align: center; text-decoration: none; }
+

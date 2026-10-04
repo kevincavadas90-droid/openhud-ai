@@ -1,51 +1,138 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OpenHUD · Entrar</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Entrar — OpenHUD AI</title>
+<meta name="description" content="Entre na sua conta OpenHUD AI." />
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" href="/static/site/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/static/site/site.css?v=5.1.0" />
 </head>
-<body class="login-body">
-  <main class="login-card">
-    <div class="login-brand">◆ <span>OpenHUD</span></div>
-    <p class="login-sub">IA multifuncional · acesso restrito</p>
-    <form id="login-form" autocomplete="on">
-      <label for="password">Senha de acesso</label>
-      <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required autofocus />
-      <button class="primary" type="submit" id="login-btn">Entrar</button>
-      <p id="login-error" class="login-error" role="alert"></p>
-    </form>
-    <p class="login-hint">A senha é definida pela variável de ambiente <code>OPENHUD_PASSWORD</code>.</p>
-  </main>
-  <script>
-    const form = document.getElementById("login-form");
-    const err = document.getElementById("login-error");
-    const btn = document.getElementById("login-btn");
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      err.textContent = "";
-      btn.disabled = true;
-      btn.textContent = "Entrando…";
-      try {
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password: document.getElementById("password").value }),
-        });
-        if (res.ok) {
-          window.location.href = "/app";
-          return;
-        }
-        const data = await res.json().catch(() => ({}));
-        err.textContent = data.detail || "Falha ao entrar";
-      } catch (ex) {
-        err.textContent = "Erro de rede: " + ex.message;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Entrar";
-      }
-    });
-  </script>
+<body>
+<header class="site">
+  <div class="wrap nav" id="nav">
+    <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="26" height="26" /> OpenHUD AI</a>
+    <button class="btn ghost nav-toggle" id="nav-toggle" aria-label="Abrir menu">Menu</button>
+    <nav class="nav-links">
+      <a href="/">Início</a><a href="/features">Recursos</a><a href="/download">Download</a><a href="/pricing">Preços</a>
+    </nav>
+    <div class="nav-actions"><a class="btn" href="/register">Criar conta</a></div>
+  </div>
+</header>
+
+<main class="auth-wrap">
+  <div class="wrap">
+    <div class="form-card">
+      <h1>Entrar</h1>
+      <p class="sub">Acesse a sua conta OpenHUD AI.</p>
+
+      <div id="tabs" style="display:flex;gap:8px;margin-bottom:18px">
+        <button class="btn ghost" id="tab-account" type="button" style="flex:1">Conta</button>
+        <button class="btn ghost" id="tab-password" type="button" style="flex:1">Senha do servidor</button>
+      </div>
+
+      <div class="form-notice" id="notice" hidden></div>
+
+      <form id="account-form" novalidate>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" />
+          <div class="err" data-error="email"></div>
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <div class="err" data-error="password"></div>
+        </div>
+        <button class="btn lg block" type="submit" id="submit">Entrar</button>
+        <p class="form-foot">
+          <a href="/forgot-password">Esqueci a senha</a> · <a href="/register">Criar conta</a>
+        </p>
+      </form>
+
+      <form id="server-form" class="hidden" novalidate>
+        <div class="field">
+          <label for="server-password">Senha do servidor</label>
+          <input id="server-password" name="password" type="password" autocomplete="current-password" required autofocus />
+          <div class="err" data-error="password"></div>
+        </div>
+        <button class="btn lg block" type="submit" id="server-submit">Entrar no servidor</button>
+        <p class="form-foot">Definida pela variável <code>OPENHUD_PASSWORD</code> (administração do servidor).</p>
+      </form>
+    </div>
+  </div>
+</main>
+
+<footer class="site"><div class="wrap"><p class="fine">OpenHUD AI · Este site não coleta dados sem a sua ação.</p></div></footer>
+<script src="/static/site/site.js?v=5.1.0"></script>
+<script src="/static/account/account.js?v=5.1.0"></script>
+<script>
+  const { api, notice, fieldError, clearErrors, setBusy } = window.OpenHUD;
+  const nEl = document.getElementById("notice");
+  const accountForm = document.getElementById("account-form");
+  const serverForm = document.getElementById("server-form");
+
+  // If the server has no account system and no accounts yet, still allow the
+  // legacy operator password. The tab is always visible so both work.
+  document.getElementById("tab-account").classList.add("btn");
+  document.getElementById("tab-account").classList.remove("ghost");
+  document.getElementById("tab-account").addEventListener("click", () => {
+    accountForm.classList.remove("hidden"); serverForm.classList.add("hidden");
+    document.getElementById("tab-account").classList.remove("ghost");
+    document.getElementById("tab-password").classList.add("ghost");
+    notice(nEl, "");
+  });
+  document.getElementById("tab-password").addEventListener("click", () => {
+    serverForm.classList.remove("hidden"); accountForm.classList.add("hidden");
+    document.getElementById("tab-password").classList.remove("ghost");
+    document.getElementById("tab-account").classList.add("ghost");
+    notice(nEl, "");
+    document.getElementById("server-password").focus();
+  });
+
+  accountForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearErrors(accountForm); notice(nEl, "");
+    const email = accountForm.email.value.trim();
+    const password = accountForm.password.value;
+    if (!email || !password) { notice(nEl, "Informe e-mail e senha.", "err"); return; }
+    const btn = document.getElementById("submit");
+    setBusy(btn, true, "Entrando…");
+    try {
+      await api("/api/account/login", { email, password });
+      window.location.href = "/app";
+    } catch (err) {
+      notice(nEl, err.message, "err");
+      setBusy(btn, false);
+    }
+  });
+
+  serverForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearErrors(serverForm); notice(nEl, "");
+    const btn = document.getElementById("server-submit");
+    setBusy(btn, true, "Entrando…");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: serverForm.password.value }),
+      });
+      if (res.ok) { window.location.href = "/app"; return; }
+      const data = await res.json().catch(() => ({}));
+      notice(nEl, data.detail || "Falha ao entrar.", "err");
+    } catch (ex) {
+      notice(nEl, "Erro de rede: " + ex.message, "err");
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  // If already signed in, go straight to the app.
+  fetch("/api/account/me", { credentials: "same-origin" })
+    .then((r) => r.json())
+    .then((d) => { if (d && d.authenticated) window.location.href = "/app"; })
+    .catch(() => {});
+</script>
 </body>
 </html>

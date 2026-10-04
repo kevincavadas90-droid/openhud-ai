@@ -4,6 +4,21 @@ Todas as mudanças relevantes do OpenHUD AI. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento
 segue [SemVer](https://semver.org/lang/pt-BR/).
 
+## 5.1.0 (2026-10-04)
+
+- **Contas de usuário**: cadastro, login, logout, recuperação e redefinição de
+  senha, verificação de e-mail, troca de senha e exclusão de conta (LGPD).
+  Senhas com PBKDF2-SHA256 e política de senha forte; sessões guardadas apenas
+  como hash, com listagem e revogação; proteção CSRF e limite de tentativas.
+- **Páginas de conta** (`/register`, `/login`, `/forgot-password`,
+  `/reset-password`, `/account`) e navegação do site ciente de sessão.
+- **Dispositivos vinculados à conta**: cada PC pareado pertence ao usuário que
+  o registrou; o app Windows entra com a mesma conta do site
+  (`--login --email`) e guarda somente o token do dispositivo.
+- **E-mail por ambiente** (`OPENHUD_SMTP_*`) que nunca finge ter enviado.
+- **URL de doação** opcional (`OPENHUD_DONATION_URL`).
+- Testes: **208** automatizados, todos passando.
+
 ## 5.0.0 (2026-10-04)
 
 - Site público com páginas de início, recursos, como funciona, preços, ajuda,

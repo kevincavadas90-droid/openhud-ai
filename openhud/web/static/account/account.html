@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Minha conta — OpenHUD AI</title>
+<meta name="description" content="Gerencie sua conta, dispositivos e segurança no OpenHUD AI." />
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" href="/static/site/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/static/site/site.css?v=5.1.0" />
+</head>
+<body>
+<header class="site">
+  <div class="wrap nav" id="nav">
+    <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="26" height="26" /> OpenHUD AI</a>
+    <button class="btn ghost nav-toggle" id="nav-toggle" aria-label="Abrir menu">Menu</button>
+    <nav class="nav-links">
+      <a href="/app">Aplicativo</a><a href="/download">Download</a><a href="/pricing">Preços</a><a href="/help">Ajuda</a>
+    </nav>
+    <div class="nav-actions">
+      <span class="muted" id="who" style="font-size:14px"></span>
+      <button class="btn ghost" id="logout">Sair</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="block" style="border-top:none">
+    <div class="wrap">
+      <div class="section-head" style="margin-bottom:22px">
+        <h2>Minha conta</h2>
+        <p>Gerencie seus dados, dispositivos e segurança.</p>
+      </div>
+
+      <div class="acct-grid">
+        <div class="card">
+          <h3>Perfil</h3>
+          <div class="kv"><span class="k">Nome</span><span class="v" id="p-name">—</span></div>
+          <div class="kv"><span class="k">E-mail</span><span class="v" id="p-email">—</span></div>
+          <div class="kv"><span class="k">E-mail confirmado</span><span class="v" id="p-verified">—</span></div>
+          <div class="kv"><span class="k">Conta criada em</span><span class="v" id="p-created">—</span></div>
+          <div class="field" style="margin-top:16px">
+            <label for="name">Alterar nome</label>
+            <input id="name" type="text" placeholder="Seu nome" />
+          </div>
+          <button class="btn" id="save-name">Salvar nome</button>
+          <div class="form-notice" id="name-notice" hidden style="margin-top:12px"></div>
+        </div>
+
+        <div class="card">
+          <h3>Alterar senha</h3>
+          <div class="field">
+            <label for="cur">Senha atual</label>
+            <input id="cur" type="password" autocomplete="current-password" />
+          </div>
+          <div class="field">
+            <label for="new">Nova senha</label>
+            <input id="new" type="password" autocomplete="new-password" />
+          </div>
+          <button class="btn" id="save-pass">Alterar senha</button>
+          <div class="form-notice" id="pass-notice" hidden style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>Meus dispositivos</h3>
+        <p class="muted" style="font-size:14px">Computadores vinculados a esta conta. Você pode desvincular ou revogar o acesso de qualquer um.</p>
+        <div id="devices"><p class="muted">Carregando…</p></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>Sessões ativas</h3>
+        <div id="sessions"><p class="muted">Carregando…</p></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;border-color:rgba(240,85,95,0.3)">
+        <h3>Excluir conta</h3>
+        <p class="muted" style="font-size:14px">Esta ação é permanente: remove a conta, as sessões e os dispositivos vinculados. Digite <span class="mono">EXCLUIR</span> para confirmar.</p>
+        <div class="field"><label for="del-confirm">Confirmação</label><input id="del-confirm" type="text" placeholder="EXCLUIR" /></div>
+        <div class="field"><label for="del-pass">Sua senha</label><input id="del-pass" type="password" /></div>
+        <button class="btn" id="delete" style="background:var(--err)">Excluir minha conta</button>
+        <div class="form-notice" id="del-notice" hidden style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site"><div class="wrap"><p class="fine">OpenHUD AI · <a href="/privacy">Privacidade</a> · <a href="/help">Ajuda</a></p></div></footer>
+<script src="/static/site/site.js?v=5.1.0"></script>
+<script src="/static/account/account.js?v=5.1.0"></script>
+<script>
+  const { api, get, notice, setBusy } = window.OpenHUD;
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (ts) => (ts ? new Date(ts * 1000).toLocaleString("pt-BR") : "—");
+
+  async function loadMe() {
+    const r = await fetch("/api/account/me", { credentials: "same-origin" });
+    const d = await r.json();
+    if (!d.authenticated) { window.location.href = "/login"; return; }
+    const u = d.user;
+    document.getElementById("who").textContent = u.name || u.email;
+    document.getElementById("p-name").textContent = u.name || "—";
+    document.getElementById("p-email").textContent = u.email;
+    document.getElementById("p-verified").textContent = u.email_verified ? "Sim" : "Ainda não";
+    document.getElementById("p-created").textContent = fmt(u.created_at);
+    document.getElementById("name").value = u.name || "";
+  }
+
+  async function loadDevices() {
+    const el = document.getElementById("devices");
+    try {
+      const d = await get("/api/account/devices");
+      if (!d.devices.length) { el.innerHTML = '<p class="muted">Nenhum dispositivo vinculado ainda. Baixe o aplicativo e entre para vincular este computador.</p>'; return; }
+      el.innerHTML = d.devices.map((dev) => `
+        <div class="device-row">
+          <span class="status-dot ${dev.online ? "on" : "off"}"></span>
+          <div class="grow">
+            <div class="dev-name">${esc(dev.name)}</div>
+            <div class="dev-meta">${esc(dev.platform)} · último acesso ${fmt(dev.last_seen)} · versão ${esc(dev.version)} · ${dev.online ? "online" : "offline"}</div>
+          </div>
+          <button class="btn ghost" data-unlink="${esc(dev.device_id)}">Desvincular</button>
+          <button class="btn ghost" data-revoke="${esc(dev.device_id)}" style="color:var(--err)">Revogar</button>
+        </div>`).join("");
+    } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+  }
+
+  async function loadSessions() {
+    const el = document.getElementById("sessions");
+    try {
+      const d = await get("/api/account/sessions");
+      if (!d.sessions.length) { el.innerHTML = '<p class="muted">Nenhuma sessão.</p>'; return; }
+      el.innerHTML = d.sessions.map((s) => `
+        <div class="device-row">
+          <div class="grow"><div class="dev-name">${esc((s.user_agent || "Dispositivo").slice(0, 60))}</div>
+          <div class="dev-meta">IP ${esc(s.ip || "—")} · último uso ${fmt(s.last_seen)}</div></div>
+        </div>`).join("");
+    } catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+  }
+
+  document.getElementById("save-name").addEventListener("click", async (e) => {
+    const btn = e.target; setBusy(btn, true, "Salvando…");
+    try { const d = await api("/api/account/name", { name: document.getElementById("name").value }); notice(document.getElementById("name-notice"), "Nome atualizado.", "ok"); document.getElementById("who").textContent = d.user.name || d.user.email; }
+    catch (err) { notice(document.getElementById("name-notice"), err.message, "err"); }
+    finally { setBusy(btn, false); }
+  });
+
+  document.getElementById("save-pass").addEventListener("click", async (e) => {
+    const btn = e.target; setBusy(btn, true, "Salvando…");
+    try { await api("/api/account/change-password", { current_password: document.getElementById("cur").value, new_password: document.getElementById("new").value }); notice(document.getElementById("pass-notice"), "Senha alterada.", "ok"); document.getElementById("cur").value = ""; document.getElementById("new").value = ""; }
+    catch (err) { notice(document.getElementById("pass-notice"), err.message, "err"); }
+    finally { setBusy(btn, false); }
+  });
+
+  document.getElementById("delete").addEventListener("click", async (e) => {
+    if (!confirm("Excluir a conta permanentemente? Esta ação não pode ser desfeita.")) return;
+    const btn = e.target; setBusy(btn, true, "Excluindo…");
+    try { await api("/api/account/delete", { password: document.getElementById("del-pass").value, confirm: document.getElementById("del-confirm").value }); notice(document.getElementById("del-notice"), "Conta excluída. Redirecionando…", "ok"); setTimeout(() => (window.location.href = "/"), 900); }
+    catch (err) { notice(document.getElementById("del-notice"), err.message, "err"); setBusy(btn, false); }
+  });
+
+  document.getElementById("logout").addEventListener("click", async () => { await api("/api/account/logout", {}); window.location.href = "/"; });
+
+  document.getElementById("devices").addEventListener("click", async (e) => {
+    const unlink = e.target.getAttribute("data-unlink");
+    const revoke = e.target.getAttribute("data-revoke");
+    if (unlink) { try { await api(`/api/account/devices/${unlink}/unlink`, {}); loadDevices(); } catch (err) { alert(err.message); } }
+    if (revoke) { if (!confirm("Revogar o acesso deste dispositivo? Ele precisará ser vinculado de novo.")) return; try { await api(`/api/account/devices/${revoke}/revoke`, {}); loadDevices(); } catch (err) { alert(err.message); } }
+  });
+
+  loadMe(); loadDevices(); loadSessions();
+</script>
+</body>
+</html>

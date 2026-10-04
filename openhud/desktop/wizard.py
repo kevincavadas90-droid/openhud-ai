@@ -58,7 +58,8 @@ class ConsoleIO:
         return value in {"s", "sim", "y", "yes", "1", "true"}
 
 
-def run_wizard(config: DesktopConfig, io: IO, pair_code: str | None = None) -> DesktopConfig:
+def run_wizard(config: DesktopConfig, io: IO, pair_code: str | None = None,
+               login: Callable[[str, str, str, str], Any] | None = None) -> DesktopConfig:
     io.say("=" * 60)
     io.say("  OpenHUD AI — Assistente de configuração (primeira execução)")
     io.say("=" * 60)
@@ -70,21 +71,44 @@ def run_wizard(config: DesktopConfig, io: IO, pair_code: str | None = None) -> D
     server = io.ask("Servidor", config.server or "http://127.0.0.1:8000")
     config.server = server.rstrip("/")
 
-    # 2. Pairing / login
-    io.say("\n2) Pareamento")
-    io.say("No site, abra 'Painel do PC' e gere um código de pareamento de 6 dígitos.")
-    if pair_code:
-        code = pair_code
-        io.say(f"Usando o código informado: {code}")
+    # 2. Sign in with the account (preferred) or pair with a code.
+    # When no network helper is injected (offline / tests), keep the original
+    # pairing flow so nothing regresses.
+    use_account = False
+    if login is not None:
+        io.say("\n2) Sua conta")
+        io.say("Entre com o mesmo e-mail e senha que você usa no site.")
+        use_account = io.confirm("Entrar com e-mail e senha?", not bool(pair_code))
+    if use_account:
+        email = io.ask("E-mail", config.account_email)
+        password = io.ask("Senha", "")
+        device_name = io.ask("Nome deste computador", config.name or "Meu PC")
+        config.name = device_name
+        result = login(config.server, email, password, device_name, "windows")
+        if getattr(result, "ok", False):
+            config.token = result.token
+            config.device_id = result.device_id
+            config.account_email = (result.user or {}).get("email", email)
+            config.account_name = (result.user or {}).get("name", "")
+            io.say("Login realizado. Computador registrado na sua conta.")
+        else:
+            io.say(f"Não foi possível entrar: {getattr(result, 'message', 'erro')}")
+            io.say("Você pode tentar de novo depois em 'Minha conta' no aplicativo.")
     else:
-        code = io.ask("Código de pareamento (deixe vazio para usar um token existente)",
-                      config.extra.get("pair_code", ""))
-    if code:
-        config.extra["pair_code"] = code
-    else:
-        token = io.ask("Token do dispositivo", config.token)
-        if token:
-            config.token = token
+        io.say("\n2) Pareamento")
+        io.say("No site, abra 'Painel do PC' e gere um código de pareamento de 6 dígitos.")
+        if pair_code:
+            code = pair_code
+            io.say(f"Usando o código informado: {code}")
+        else:
+            code = io.ask("Código de pareamento (deixe vazio para usar um token existente)",
+                          config.extra.get("pair_code", ""))
+        if code:
+            config.extra["pair_code"] = code
+        else:
+            token = io.ask("Token do dispositivo", config.token)
+            if token:
+                config.token = token
 
     # 3. Permissions
     io.say("\n3) Permissões")

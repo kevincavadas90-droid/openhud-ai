@@ -133,6 +133,33 @@ memória + interface web. Python 3.11+, FastAPI, SQLite, front-end sem build.
 - `docker-compose.yml` (SQLite padrão, perfil `postgres`). `Dockerfile` com
   `HEALTHCHECK` em `/health`.
 
+## Fase 7 — contas de usuário e produto real
+- `openhud/core/accounts.py`: `AccountManager` (users, sessions, tokens,
+  devices). Helpers `_dict`/`_one`/`_all` normalizam `sqlite3.Row`→dict **sem
+  recursão** (a versão recursiva antiga estourava). `hash_password` /
+  `verify_password_hash` (PBKDF2-SHA256, salt aleatório).
+- `openhud/web/accounts_api.py`: `router`, `init_accounts`,
+  `ACCOUNT_PUBLIC_PATHS`, `require_csrf(request, body_csrf)`, `_is_https`,
+  `_client_ip`, `current_user`, `get_accounts`. Endpoints `/api/account/*`.
+  **Ordem do CSRF importa**: valide antes de ler o corpo sensível.
+- `openhud/web/shell.py`: shell comum das páginas (nav ciente de sessão + SEO).
+- `openhud/web/site.py`: site público reescrito (SEO, ícones, doação,
+  navegação por sessão).
+- `openhud/core/mail.py`: e-mail por `OPENHUD_SMTP_*`; sem SMTP devolve
+  `email_sent=false` e loga o link. `OPENHUD_EXPOSE_RESET_LINK=1` só em testes.
+- `openhud/core/release.py`: helper de doação (`OPENHUD_DONATION_URL`).
+- **Dispositivos do usuário**: `AgentHub.register_device(name, platform, info)`
+  cria dispositivo+token; `AccountManager.link_device` guarda o vínculo.
+  `/api/agent/register-device` (em `web/agent_api.py`) é o que o app Windows
+  chama após o login.
+- `openhud/desktop/account.py`: login do app Windows via `urllib` (stdlib).
+  Cuidados: `_set_cookie` lê **todos** os `Set-Cookie` (`get_all`), e o CSRF é
+  **rotacionado no login** — use o cookie novo antes de registrar o dispositivo.
+- `openhud/desktop/wizard.py`: `run_wizard(..., login=...)`; sem `login`
+  (testes/offline) mantém o fluxo antigo de pareamento.
+- CSS do chip de usuário no fim de `static/styles.css`; páginas em
+  `static/account/`; landing em `static/site/index.html`.
+
 ## Armadilhas conhecidas
 - `TestClient` do Starlette serializa requisições por um único portal: um
   POST feito durante um stream SSE causa deadlock no teste (não em produção).
@@ -160,10 +187,20 @@ O provedor escolhido SEMPRE usa a `base_url`/`model` das settings do usuário
 tentativa; a UI mostra `provider` respondido e nunca mascara o erro real.
 
 ## Autenticação
-`openhud/web/auth.py`: senha via `OPENHUD_PASSWORD` (senão gera aleatória e
-loga); cookie `hud_session` assinado (HMAC) com `OPENHUD_SESSION_SECRET`;
-`OPENHUD_AUTH=off` desliga. Middleware em `web/app.py` protege `/api/*` (401)
-e páginas (302 `/login`). Limite de tentativas de login por IP.
+Dois modos coexistem:
+- **Contas** (Fase 7): `openhud/core/accounts.py` (`AccountManager`) +
+  `openhud/web/accounts_api.py`. Tabelas `users`, `user_sessions`,
+  `password_resets`, `email_verifications`, `user_devices`. Senhas
+  PBKDF2-SHA256; sessões/resets guardados só como hash; CSRF (cookie
+  `openhud_csrf` + `X-CSRF-Token`);
+  rate limiters próprios em `web/ratelimit.py`. Páginas e rotas públicas
+  listadas em `ACCOUNT_PUBLIC_PATHS` (aplicado no middleware de `web/app.py`).
+- **Operador**: `openhud/web/auth.py`, senha via `OPENHUD_PASSWORD` (senão
+  gera aleatória e loga); cookie `hud_session` assinado (HMAC) com
+  `OPENHUD_SESSION_SECRET`; `OPENHUD_AUTH=off` desliga. Middleware em
+  `web/app.py` protege `/api/*` (401) e páginas (302 `/login`).
+
+`current_user(request)` retorna a conta logada ou `None` (modo operador).
 
 ## Banco de dados
 `create_database(path, database_url)` em `core/db.py` escolhe SQLite (padrão)
@@ -220,7 +257,7 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **175 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **208 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
   diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
   estratégias, backtest, alertas, paper, permissões, idempotência e as
@@ -236,6 +273,10 @@ Instalar sem pipe-to-shell: baixar
   de SHA-256 do instalador, o `selfcheck` (status + gating de permissão), a
   config desktop, o assistente de 1ª execução, o runtime do agente e a
   coerência do script do instalador.
+  `test_accounts.py` cobre o `AccountManager` (hash, sessões, resets,
+  verificação, dispositivos, exclusão), a API de contas ponta a ponta
+  (CSRF, login, reset, exclusão, sessões, dispositivos) e o login do app
+  desktop contra um **uvicorn real** (CSRF rotacionado incluído).
   `tests/conftest.py` limpa os rate limiters entre testes (senão o login
   compartilhado estoura o limite e vira 401/429).
 - Deploy validado: `docker build` + container respondendo `/api/health`.

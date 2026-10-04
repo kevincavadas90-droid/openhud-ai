@@ -145,6 +145,7 @@ def _print_diagnostics() -> None:
 
 def run_agent(server: str, pair: str | None, console: bool) -> int:
     """Run the desktop app as a PC agent connected to a remote server."""
+    from .account import login_and_register
     from .config import DesktopConfig
     from .runtime import AgentRuntime
 
@@ -157,7 +158,7 @@ def run_agent(server: str, pair: str | None, console: bool) -> int:
     if not config.onboarded and not console:
         from .wizard import ConsoleIO, run_wizard
 
-        run_wizard(config, ConsoleIO(), pair_code=pair)
+        run_wizard(config, ConsoleIO(), pair_code=pair, login=login_and_register)
 
     if not config.server:
         print("[OpenHUD] Informe --agent <servidor> ou configure no assistente.")
@@ -184,6 +185,36 @@ def run_agent(server: str, pair: str | None, console: bool) -> int:
     return 0
 
 
+def login_account(server: str, email: str, password: str) -> int:
+    """Sign in with the account and register this computer.
+
+    Keeps the account e-mail and the device token in the desktop config; the
+    password is used once and never stored.
+    """
+    from .account import login_and_register
+    from .config import DesktopConfig
+
+    config = DesktopConfig.load()
+    if server:
+        config.server = server.rstrip("/")
+    if not config.server:
+        print("[OpenHUD] Informe --server <url> para entrar na conta.")
+        return 1
+    name = config.name or socket.gethostname() or "Meu PC"
+    result = login_and_register(config.server, email, password, name, "windows")
+    if not result.ok:
+        print(f"[OpenHUD] Não foi possível entrar: {result.message}")
+        return 2
+    config.token = result.token
+    config.device_id = result.device_id
+    config.account_email = (result.user or {}).get("email", email)
+    config.account_name = (result.user or {}).get("name", "")
+    config.name = name
+    config.save()
+    print(f"[OpenHUD] Conectado como {config.account_email}. Computador registrado na conta.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=f"{APP_NAME} — aplicativo local")
     parser.add_argument("--port", type=int, default=0, help="Porta (0 = automática)")
@@ -191,6 +222,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--console", action="store_true", help="Rodar no console (sem bandeja)")
     parser.add_argument("--agent", metavar="SERVER", help="Rodar como agente conectado a um servidor")
     parser.add_argument("--pair", help="Código de pareamento (com --agent)")
+    parser.add_argument("--login", action="store_true", help="Entrar com a conta (e-mail/senha) e registrar este PC")
+    parser.add_argument("--server", help="URL do servidor OpenHUD (para --login/--agent)")
+    parser.add_argument("--email", help="E-mail da conta (com --login)")
+    parser.add_argument("--password", help="Senha da conta (com --login; não é armazenada)")
     parser.add_argument("--onboard", action="store_true", help="Rodar só o assistente de primeira execução")
     parser.add_argument("--diagnose", action="store_true", help="Rodar o diagnóstico do agente e sair")
     parser.add_argument("--permissions", action="store_true", help="Mostrar as permissões atuais e sair")
@@ -217,6 +252,11 @@ def main(argv: list[str] | None = None) -> int:
 
         run_wizard(DesktopConfig.load(), ConsoleIO(), pair_code=args.pair)
         return 0
+
+    if args.login:
+        email = args.email or input("E-mail: ").strip()
+        password = args.password or input("Senha: ").strip()
+        return login_account(args.server or args.agent or "", email, password)
 
     if args.agent:
         return run_agent(args.agent, args.pair, args.console)

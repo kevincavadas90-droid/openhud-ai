@@ -16,9 +16,10 @@ import json
 from collections import deque
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+from .. import __version__
 from ..agent.diagnostics import available_optimizations, diagnose, suggest_game_profile
 from ..agent.telemetry import TelemetryCollector
 from ..core.agent_hub import PERMISSION_KEYS, get_hub
@@ -141,6 +142,39 @@ async def agent_ws(ws: WebSocket) -> None:
 @router.post("/api/agents/pairing")
 def create_pairing() -> dict[str, Any]:
     return get_hub().create_pairing_code()
+
+
+class RegisterDevicePayload(BaseModel):
+    name: str = "Meu PC"
+    platform: str = "windows"
+    csrf: str | None = None
+
+
+@router.post("/api/agent/register-device")
+def register_device(payload: RegisterDevicePayload, request: Request) -> dict[str, Any]:
+    """Register the desktop app's computer on the signed-in account.
+
+    Called by the Windows client after a successful account login. Returns the
+    device token exactly once; the client stores it and uses it for the agent
+    WebSocket. The device is linked to the account so it shows up under
+    "Meus dispositivos".
+    """
+    from .accounts_api import current_user, require_csrf
+
+    require_csrf(request, payload.csrf)
+    user = current_user(request)
+    if user is None:
+        # Operator (server-password) mode: still allow a device, unowned.
+        user = None
+    result = get_hub().register_device(
+        payload.name or "Meu PC", payload.platform or "windows",
+        {"app_version": __version__, "source": "desktop"},
+    )
+    if user is not None:
+        from .accounts_api import get_accounts
+
+        get_accounts().link_device(user["id"], result["device_id"], payload.name or "Meu PC")
+    return result
 
 
 @router.get("/api/agents")

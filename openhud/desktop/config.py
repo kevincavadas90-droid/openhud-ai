@@ -70,6 +70,8 @@ class DesktopConfig:
     name: str = ""
     onboarded: bool = False
     autostart: bool = False
+    account_email: str = ""
+    account_name: str = ""
     groups: dict[str, bool] = field(default_factory=lambda: {
         "basic": True, "screen": False, "control": False,
         "automation": False, "voice": False,
@@ -117,3 +119,5 @@ class DesktopConfig:
     def clear_credentials(self) -> None:
         self.token = ""
         self.device_id = ""
+        self.account_email = ""
+        self.account_name = ""
