@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OpenHUD AI</title>
-<link rel="stylesheet" href="/static/styles.css?v=4" />
+<link rel="stylesheet" href="/static/styles.css?v=6" />
 </head>
 <body>
 <div id="app">
@@ -19,15 +19,24 @@
     <button id="new-conv" class="primary">+ Nova conversa</button>
     <nav class="nav">
       <button data-view="pc" class="nav-btn">Painel do PC</button>
+      <button data-view="assistant" class="nav-btn">Assistente</button>
+      <button data-view="trading" class="nav-btn">MT5 / Trading</button>
       <button data-view="chat" class="nav-btn active">Chat</button>
+      <button data-view="codex" class="nav-btn">Codex</button>
+      <button data-view="images" class="nav-btn">Imagens</button>
+      <button data-view="video" class="nav-btn">Vídeo</button>
+      <button data-view="plugins" class="nav-btn">Plugins</button>
       <button data-view="games" class="nav-btn">Jogos</button>
       <button data-view="performance" class="nav-btn">Desempenho</button>
       <button data-view="projects" class="nav-btn">Projetos</button>
       <button data-view="memory" class="nav-btn">Memória</button>
+      <button data-view="intelligence" class="nav-btn">Inteligência</button>
       <button data-view="tools" class="nav-btn">Ferramentas</button>
       <button data-view="files" class="nav-btn">Arquivos</button>
       <button data-view="tasks" class="nav-btn">Tarefas</button>
       <button data-view="activity" class="nav-btn">Atividades</button>
+      <button data-view="privacy" class="nav-btn">Privacidade</button>
+      <button data-view="admin" class="nav-btn">Admin</button>
       <button data-view="settings" class="nav-btn">Configurações</button>
     </nav>
     <div class="sidebar-section grow">
@@ -136,10 +145,28 @@ python -m openhud.agent.agent_client \
           <small id="model-badge">—</small>
         </div>
         <div class="badges">
+          <span id="route-badge" class="badge" title="modo ativo">⚡ AUTO</span>
+          <select id="mode-select" class="ghost small" title="Modo da IA"></select>
           <span id="autonomy-badge" class="badge">supervisionado</span>
           <button id="toggle-autonomy" class="ghost small">alternar autonomia</button>
         </div>
       </header>
+      <div id="voice-bar" class="voice-bar">
+        <button id="voice-toggle" class="ghost small" title="Falar">🎙️ Falar</button>
+        <button id="voice-listen" class="ghost small" title="Ouvir última resposta">🔊 Ouvir</button>
+        <button id="voice-stop" class="ghost small" title="Parar">⏹ Parar</button>
+        <button id="voice-pause" class="ghost small" title="Pausar/Retomar">⏸ Pausar</button>
+        <button id="voice-repeat" class="ghost small" title="Repetir">🔄 Repetir</button>
+        <label class="voice-opt"><input type="checkbox" id="voice-continuous" /> conversa contínua</label>
+        <label class="voice-opt"><input type="checkbox" id="voice-wake" /> wake word</label>
+        <span id="voice-status" class="voice-status"></span>
+      </div>
+      <div id="task-bar" class="task-bar">
+        <span id="task-state-badge" class="badge">SEM TAREFA</span>
+        <span id="task-detail" class="small muted"></span>
+        <button id="task-cancel" class="ghost small" title="Parar agora">⏹ PARAR</button>
+        <button id="task-pause" class="ghost small" title="Pausar/Retomar">⏸ PAUSAR</button>
+      </div>
       <div id="messages" class="messages">
         <div class="empty">
           <h3>Bem-vindo ao OpenHUD AI</h3>
@@ -150,6 +177,81 @@ python -m openhud.agent.agent_client \
         <textarea id="input" placeholder="Descreva a tarefa… (Enter envia, Shift+Enter quebra linha)" rows="2"></textarea>
         <button type="submit" id="send" class="primary">Enviar</button>
       </form>
+    </section>
+
+    <!-- ASSISTENTE DE COMPUTADOR -->
+    <section class="view" id="view-assistant">
+      <header class="topbar">
+        <div>
+          <h2>Assistente de computador</h2>
+          <small>converse naturalmente — a IA entende a intenção, guia ou executa</small>
+        </div>
+        <div class="badges">
+          <span id="as-level-badge" class="badge">nível: —</span>
+          <span id="as-profile-badge" class="badge">perfil: —</span>
+        </div>
+      </header>
+
+      <div class="card">
+        <h3>O que você quer fazer?</h3>
+        <p class="small">Fale como você fala normalmente. Exemplos: "Quero entrar no meu e-mail",
+          "Não sei onde clicar", "Pode abrir o navegador?", "O que apareceu nessa tela?",
+          "Não estou conseguindo fazer isso", "Pode fazer para mim?".</p>
+        <div class="row">
+          <input id="as-request" placeholder="Escreva ou fale o que você precisa…" />
+          <button id="as-go" class="primary">Pedir ajuda</button>
+          <button id="as-speak" class="ghost" title="Falar">🎙️</button>
+        </div>
+        <div id="as-suggest" class="row small"></div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Nível de autonomia</h3>
+          <p class="small" id="as-level-desc"></p>
+          <div id="as-levels" class="list"></div>
+        </div>
+        <div class="card">
+          <h3>Perfil do usuário</h3>
+          <p class="small">Adapta a linguagem e o nível de explicação.</p>
+          <div id="as-profiles" class="list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Visão da tela</h3>
+        <div class="row">
+          <button id="as-screen-analyze" class="ghost">Analisar tela atual</button>
+          <input id="as-find-q" placeholder="Procurar elemento (ex.: botão Entrar)" style="max-width:280px" />
+          <button id="as-find" class="ghost">Localizar</button>
+          <button id="as-highlight" class="ghost">Destacar</button>
+        </div>
+        <div id="as-screen-out" class="list small mono">A análise da tela exige um PC conectado com a permissão 'screen'.</div>
+        <div id="as-highlight-out" class="highlight-out hidden"></div>
+      </div>
+
+      <div class="card">
+        <h3>Proteção contra golpes</h3>
+        <p class="small">Cole o texto da página ou mensagem suspeita. A IA aponta sinais de risco — nunca afirma com certeza.</p>
+        <textarea id="as-scam-text" rows="3" placeholder="Cole aqui o texto da página/mensagem…"></textarea>
+        <div class="row">
+          <input id="as-scam-url" placeholder="Endereço da página (opcional)" />
+          <button id="as-scam-check" class="ghost">Verificar sinais de risco</button>
+        </div>
+        <div id="as-scam-out" class="list small"></div>
+      </div>
+    </section>
+
+    <!-- CENTRAL DE CONTROLE -->
+    <section class="view" id="view-control-center">
+      <header class="topbar">
+        <div><h2>Central de controle</h2><small>dispositivos, tarefas, segurança e saúde</small></div>
+        <button id="cc-refresh" class="ghost small">atualizar</button>
+      </header>
+      <div id="cc-health" class="grid"></div>
+      <div class="card"><h3>Dispositivos</h3><div id="cc-devices" class="list small"></div></div>
+      <div class="card"><h3>Tarefas e jobs</h3><div id="cc-tasks" class="list small"></div></div>
+      <div class="card"><h3>Segurança</h3><div id="cc-security" class="list small mono"></div></div>
     </section>
 
     <!-- GAMES -->
@@ -239,6 +341,310 @@ python -m openhud.agent.agent_client \
       <div id="activity-list" class="list mono"></div>
     </section>
 
+    <!-- CODEX -->
+    <section class="view" id="view-codex">
+      <header class="topbar">
+        <div><h2>Codex</h2><small>engenharia de software: analisar, implementar, testar, corrigir</small></div>
+        <button id="cx-run" class="primary">Executar no chat</button>
+      </header>
+      <div class="card">
+        <h3>Objetivo</h3>
+        <div class="row">
+          <input id="cx-objective" placeholder="Ex.: Crie um app de controle financeiro…" />
+          <button id="cx-plan" class="ghost">Planejar</button>
+          <button id="cx-analyze" class="ghost">Analisar projeto</button>
+          <button id="cx-test" class="ghost">Rodar testes</button>
+        </div>
+      </div>
+      <div id="cx-plan-out" class="card hidden"><h3>Plano</h3><div id="cx-plan-list" class="list"></div></div>
+      <div id="cx-analyze-out" class="card hidden"><h3>Análise</h3><div id="cx-analyze-body" class="list mono small"></div></div>
+      <div id="cx-test-out" class="card hidden"><h3>Testes</h3><div id="cx-test-body" class="list mono small"></div></div>
+      <div class="card">
+        <h3>Alterações propostas</h3>
+        <p class="small">Cada alteração mostra antes/depois/diff. Aceite, rejeite ou reverta sem perder o código anterior.</p>
+        <div id="cx-changes" class="list"></div>
+      </div>
+      <div class="card">
+        <h3>Sandbox de código</h3>
+        <p class="small">Execução com limites de CPU, memória, arquivos e timeout. Isolamento de rede não é aplicável neste ambiente (informado honestamente).</p>
+        <textarea id="cx-sandbox-code" placeholder="print('olá')" rows="4"></textarea>
+        <div class="row"><button id="cx-sandbox-run" class="primary">Executar no sandbox</button></div>
+        <pre id="cx-sandbox-out" class="mono small"></pre>
+      </div>
+    </section>
+
+    <!-- IMAGES -->
+    <section class="view" id="view-images">
+      <header class="topbar"><h2>Imagens</h2><small>texto → imagem com providers reais</small></header>
+      <div class="card">
+        <div class="row">
+          <input id="im-prompt" placeholder="Descreva a imagem…" />
+          <input id="im-width" type="number" value="1024" style="max-width:110px" title="largura" />
+          <input id="im-height" type="number" value="1024" style="max-width:110px" title="altura" />
+          <button id="im-generate" class="primary">Gerar</button>
+        </div>
+        <div id="im-providers" class="small muted"></div>
+      </div>
+      <div id="im-result" class="grid"></div>
+    </section>
+
+    <!-- VIDEO -->
+    <section class="view" id="view-video">
+      <header class="topbar"><h2>Vídeo</h2><small>roteiro → vídeo (ffmpeg) com progresso real</small></header>
+      <div class="card">
+        <h3>Roteiro</h3>
+        <textarea id="vd-script" placeholder="Escreva o roteiro. Parágrafos viram cenas." rows="5"></textarea>
+        <div class="row">
+          <input id="vd-images" placeholder="Caminhos de imagens separados por vírgula" />
+          <button id="vd-render" class="primary">Renderizar</button>
+        </div>
+        <div id="vd-providers" class="small muted"></div>
+      </div>
+      <div id="vd-jobs" class="list"></div>
+    </section>
+
+    <!-- PLUGINS -->
+    <section class="view" id="view-plugins">
+      <header class="topbar"><h2>Plugins</h2><small>explorar, instalar, ativar, desativar, remover</small></header>
+      <div id="pl-unavailable" class="card hidden"><h3>Sem integração disponível</h3><div id="pl-unavailable-list" class="list small"></div></div>
+      <div class="card"><h3>Instalados</h3><div id="pl-installed" class="list"></div></div>
+      <div class="card"><h3>Disponíveis (nativos)</h3><div id="pl-available" class="list"></div></div>
+    </section>
+
+    <!-- INTELLIGENCE -->
+    <section class="view" id="view-intelligence">
+      <header class="topbar"><h2>Inteligência</h2><small>memórias, preferências, experiências e taxa de sucesso</small></header>
+      <div id="in-summary" class="grid"></div>
+      <div class="card"><h3>Ferramentas mais usadas</h3><div id="in-tools" class="list small"></div></div>
+      <div class="card"><h3>Problemas recorrentes</h3><div id="in-problems" class="list small"></div></div>
+      <div class="card"><h3>Soluções que funcionaram</h3><div id="in-solutions" class="list small"></div></div>
+      <div class="card"><h3>Preferências aprendidas</h3><div id="in-prefs" class="list small"></div></div>
+      <div class="card"><h3>Experiências recentes</h3><div id="in-experiences" class="list small"></div></div>
+    </section>
+
+    <!-- PRIVACY -->
+    <section class="view" id="view-privacy">
+      <header class="topbar"><h2>Privacidade</h2><small>controle seus dados</small></header>
+      <div class="card">
+        <h3>Histórico de voz</h3>
+        <div class="row">
+          <button id="pv-voice-load" class="ghost">Ver histórico</button>
+          <button id="pv-voice-clear" class="ghost">Apagar histórico de voz</button>
+        </div>
+        <div id="pv-voice-list" class="list small mono"></div>
+      </div>
+      <div class="card">
+        <h3>Memória e aprendizado</h3>
+        <div class="row">
+          <button id="pv-mem-clear" class="ghost">Apagar memória</button>
+          <button id="pv-exp-clear" class="ghost">Apagar experiências</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Exportar dados</h3>
+        <div class="row"><button id="pv-export" class="primary">Exportar (JSON)</button></div>
+        <pre id="pv-export-out" class="mono small"></pre>
+      </div>
+      <div class="card">
+        <h3>Backup e restauração</h3>
+        <p class="small">Backups reais do banco de dados, com verificação de integridade. Restaurar guarda uma cópia de segurança do estado atual.</p>
+        <div class="row">
+          <button id="pv-backup" class="primary">Criar backup agora</button>
+          <button id="pv-backup-list" class="ghost">Listar backups</button>
+        </div>
+        <div id="pv-backup-out" class="list small mono"></div>
+      </div>
+      <div class="card">
+        <h3>Atualizações</h3>
+        <p class="small">Verifica um manifesto HTTPS com versão e somas sha256. Nada é executado automaticamente.</p>
+        <div class="row">
+          <input id="pv-update-url" placeholder="URL do manifesto (https://…)" />
+          <button id="pv-update-check" class="ghost">Verificar atualizações</button>
+        </div>
+        <div id="pv-update-out" class="list small"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="view" id="view-admin">
+      <header class="topbar"><h2>Admin</h2><small>diagnóstico, providers, plugins, workers, segurança</small></header>
+      <div id="ad-summary" class="grid"></div>
+      <div class="card"><h3>Diagnóstico do sistema</h3><div id="ad-diagnostics" class="list small"></div></div>
+      <div class="card"><h3>Providers (tentativas)</h3><div id="ad-providers" class="list small"></div></div>
+      <div class="card"><h3>Jobs / workers</h3><div id="ad-jobs" class="list small"></div></div>
+      <div class="card"><h3>Eventos de segurança</h3><div id="ad-security" class="list small mono"></div></div>
+    </section>
+
+
+    <!-- TRADING / MT5 -->
+    <section class="view" id="view-trading">
+      <header class="topbar">
+        <div>
+          <h2>MT5 / Trading</h2>
+          <small id="tr-sub">análise, alertas e automação controlada via MetaTrader 5</small>
+        </div>
+        <div class="badges">
+          <span id="tr-conn" class="badge offline">🔴 MT5 desconectado</span>
+          <span id="tr-mode-badge" class="badge">modo: —</span>
+          <button id="tr-refresh" class="ghost small">atualizar</button>
+        </div>
+      </header>
+
+      <div class="risk-banner" id="tr-risk-notice">
+        ⚠️ Operações financeiras envolvem risco de perda. As análises da IA não garantem
+        resultados. Comece em <b>análise</b> ou <b>simulação</b>; ativar operações reais é decisão sua.
+      </div>
+
+      <div id="tr-empty" class="empty card">
+        <h3>Nenhum PC com MT5 conectado</h3>
+        <p>Instale o <b>OpenHUD Agent</b> no PC onde o MetaTrader 5 está aberto e faça o pareamento.
+           A leitura do mercado exige a permissão <code>ALLOW_MARKET_READ</code>.</p>
+        <button class="primary" data-goto="connect">Conectar este computador</button>
+      </div>
+
+      <div id="tr-dash" class="hidden">
+        <div class="tr-toolbar card">
+          <div class="row">
+            <div><label>Ativo</label><input id="tr-symbol" value="EURUSD" /></div>
+            <div><label>Timeframe</label>
+              <select id="tr-timeframe">
+                <option>M1</option><option>M5</option><option selected>M15</option>
+                <option>M30</option><option>H1</option><option>H4</option>
+                <option>D1</option><option>W1</option><option>MN1</option>
+              </select>
+            </div>
+            <div><label>Modo</label>
+              <select id="tr-mode">
+                <option value="learn">Aprender</option>
+                <option value="analysis" selected>Análise (somente leitura)</option>
+                <option value="simulation">Simulação (paper)</option>
+                <option value="demo">Demo</option>
+                <option value="real">Real</option>
+              </select>
+            </div>
+            <div class="tr-toolbar-actions">
+              <button id="tr-analyse" class="primary">Analisar</button>
+              <button id="tr-brief" class="ghost">Resumo</button>
+              <button id="tr-scan" class="ghost">Varredura rápida</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Conta</h3>
+            <div id="tr-account" class="kv mono small">—</div>
+          </div>
+          <div class="card">
+            <h3>Posições abertas</h3>
+            <div id="tr-positions" class="list mono small">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Análise do mercado</h3>
+          <div id="tr-analysis" class="findings">Escolha um ativo e clique em Analisar.</div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Estratégias</h3>
+            <p class="hint">Descreva em linguagem natural. A IA mostra as regras interpretadas.</p>
+            <textarea id="tr-strat-text" rows="3" placeholder="Ex.: EMA 9 + EMA 21 + RSI 14"></textarea>
+            <div class="row">
+              <input id="tr-strat-name" placeholder="nome (opcional)" />
+              <button id="tr-strat-save" class="primary">Interpretar e salvar</button>
+            </div>
+            <div id="tr-strat-list" class="list small"></div>
+            <button id="tr-backtest" class="ghost">Rodar backtest no ativo/timeframe acima</button>
+            <div id="tr-backtest-out" class="mono small"></div>
+          </div>
+
+          <div class="card">
+            <h3>Alertas</h3>
+            <div class="row">
+              <select id="tr-alert-kind">
+                <option value="price">Preço</option>
+                <option value="indicator">Indicador</option>
+                <option value="breakout">Rompimento</option>
+                <option value="volatility">Volatilidade</option>
+                <option value="spread">Spread</option>
+              </select>
+              <input id="tr-alert-op" placeholder="op (>=, <=, <, >)" value=">=" />
+              <input id="tr-alert-value" placeholder="valor" type="number" step="any" />
+              <button id="tr-alert-add" class="primary">Criar</button>
+            </div>
+            <div id="tr-alert-list" class="list small"></div>
+            <button id="tr-alert-eval" class="ghost">Avaliar alertas agora</button>
+            <div id="tr-alert-out" class="mono small"></div>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Simulação (paper trading)</h3>
+            <div id="tr-paper-sum" class="kv mono small">—</div>
+            <div class="row">
+              <input id="tr-paper-dir" placeholder="compra/venda" value="compra" />
+              <input id="tr-paper-lot" placeholder="lote" type="number" step="0.01" value="0.1" />
+              <input id="tr-paper-entry" placeholder="entrada" type="number" step="any" />
+              <button id="tr-paper-open" class="primary">Abrir</button>
+            </div>
+            <div id="tr-paper-pos" class="list mono small"></div>
+          </div>
+
+          <div class="card">
+            <h3>Operação (requer DEMO/REAL)</h3>
+            <div class="row">
+              <input id="tr-ord-dir" placeholder="compra/venda" value="compra" />
+              <input id="tr-ord-entry" placeholder="entrada" type="number" step="any" />
+              <input id="tr-ord-stop" placeholder="stop" type="number" step="any" />
+              <input id="tr-ord-take" placeholder="take" type="number" step="any" />
+            </div>
+            <button id="tr-ord-prepare" class="ghost">Calcular risco (pré-ordem)</button>
+            <div id="tr-ord-preview" class="mono small"></div>
+            <div class="row right">
+              <button id="tr-ord-execute" class="primary">Confirmar e enviar</button>
+              <button id="tr-stop" class="ghost danger">STOP TRADING</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Diário de operações</h3>
+            <div class="row">
+              <input id="tr-j-symbol" placeholder="ativo" />
+              <input id="tr-j-strategy" placeholder="estratégia" />
+              <input id="tr-j-result" placeholder="resultado" type="number" step="any" />
+              <input id="tr-j-notes" placeholder="notas / lições" />
+              <button id="tr-j-add" class="primary">Registrar</button>
+            </div>
+            <div id="tr-j-list" class="list small"></div>
+          </div>
+          <div class="card">
+            <h3>Limites de risco</h3>
+            <div class="row">
+              <div><label>Risco/operação %</label><input id="tr-lim-risk" type="number" step="0.1" value="1" /></div>
+              <div><label>Perda diária %</label><input id="tr-lim-day" type="number" step="0.1" value="3" /></div>
+              <div><label>Máx. ops/dia</label><input id="tr-lim-trades" type="number" value="10" /></div>
+              <div><label>Máx. posições</label><input id="tr-lim-pos" type="number" value="3" /></div>
+              <div><label>Lote máx.</label><input id="tr-lim-lot" type="number" step="0.01" value="1" /></div>
+            </div>
+            <button id="tr-lim-save" class="primary">Salvar limites</button>
+            <h3 style="margin-top:1rem">Registro de auditoria</h3>
+            <div id="tr-audit" class="list mono small"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Trilha do iniciante (para quem tem pouco tempo)</h3>
+          <p class="hint">Siga na ordem. Cada passo reduz o risco do próximo.</p>
+          <div id="tr-education" class="findings"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
       <header class="topbar"><h2>Configurações</h2><small>modelo, provedor, autonomia e chaves</small></header>
@@ -287,6 +693,60 @@ python -m openhud.agent.agent_client \
           </div>
           <div id="secret-list" class="list"></div>
         </div>
+
+        <div class="card">
+          <h3>Personalidade</h3>
+          <p class="hint">Tom e estilo (persona). A IA nunca afirma ter sentimentos reais.</p>
+          <label>Estilo</label>
+          <select id="p-style"></select>
+          <div id="p-traits" class="traits"></div>
+          <label class="check"><input type="checkbox" id="p-adaptive" /> Aprendizado adaptativo das preferências</label>
+          <button id="p-save" class="primary">Salvar personalidade</button>
+          <details><summary class="small">Ver orientação gerada</summary><pre id="p-guidance" class="mono small"></pre></details>
+        </div>
+
+        <div class="card">
+          <h3>Voz</h3>
+          <p class="hint">STT e TTS. Por padrão não guardamos áudio.</p>
+          <div class="row">
+            <div><label>Idioma</label><select id="v-language"></select></div>
+            <div><label>Estilo</label><select id="v-style"></select></div>
+          </div>
+          <div class="row">
+            <div><label>Velocidade (ex.: +10%)</label><input id="v-rate" placeholder="+0%" /></div>
+            <div><label>Tom (ex.: +5Hz)</label><input id="v-pitch" placeholder="+0Hz" /></div>
+          </div>
+          <div class="row">
+            <div><label>Provider TTS</label>
+              <select id="v-provider"><option value="auto">auto</option><option value="edge">edge</option><option value="openai">openai</option></select>
+            </div>
+            <div><label>Wake phrase</label><input id="v-wake-phrase" placeholder="OpenHUD" /></div>
+          </div>
+          <label class="check"><input type="checkbox" id="v-continuous" /> Conversa contínua</label>
+          <label class="check"><input type="checkbox" id="v-wake" /> Wake word (microfone sempre ativo — mostrado claramente)</label>
+          <label class="check"><input type="checkbox" id="v-save-transcript" /> Salvar transcrição</label>
+          <label class="check"><input type="checkbox" id="v-save-history" /> Salvar histórico de voz</label>
+          <button id="v-save" class="primary">Salvar voz</button>
+          <div id="v-providers" class="small muted"></div>
+        </div>
+
+        <div class="card">
+          <h3>Acessibilidade e perfil</h3>
+          <p class="small">Ajuda para iniciantes, pessoas idosas ou quem prefere uma interface mais clara.</p>
+          <div class="row">
+            <label class="check"><input type="checkbox" id="a-large-text" /> Texto maior</label>
+            <label class="check"><input type="checkbox" id="a-big-buttons" /> Botões grandes</label>
+            <label class="check"><input type="checkbox" id="a-high-contrast" /> Alto contraste</label>
+          </div>
+          <div class="row">
+            <label class="check"><input type="checkbox" id="a-read-aloud" /> Ler respostas em voz alta</label>
+            <label class="check"><input type="checkbox" id="a-calm-voice" /> Voz mais calma</label>
+            <label class="check"><input type="checkbox" id="a-simple-language" /> Linguagem simples</label>
+          </div>
+          <div class="row">
+            <button id="a-save" class="primary">Salvar acessibilidade</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -306,6 +766,6 @@ python -m openhud.agent.agent_client \
 </div>
 
 <div id="toast" class="toast hidden"></div>
-<script src="/static/app.js?v=4"></script>
+<script src="/static/app.js?v=7"></script>
 </body>
 </html>

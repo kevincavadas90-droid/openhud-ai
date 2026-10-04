@@ -4,6 +4,16 @@ websockets>=12
 psutil>=5.9
 # Optional but recommended: GPU metrics on NVIDIA cards.
 nvidia-ml-py>=12
+# Optional: MetaTrader 5 integration (Windows only). Install on the PC that
+# runs MetaTrader 5 to enable the MT5/trading module.
+MetaTrader5>=5.0.45 ; platform_system == "Windows"
 # Optional: system-tray icon on Windows/macOS.
 pystray>=0.19 ; platform_system != "Linux"
 Pillow>=10 ; platform_system != "Linux"
+# Optional: computer-assistant (screen vision + input control). Install these
+# on the PC to let the assistant see the screen and click/type when you allow it.
+mss>=9 ; python_version >= "3.8"
+pytesseract>=0.3.10
+pyautogui>=0.9.54
+pygetwindow>=0.0.9
+pyperclip>=1.8

@@ -83,7 +83,7 @@ def test_auth_required_and_rejected():
     assert anon.get("/api/settings").status_code == 401
     assert anon.post("/api/login", json={"password": "wrong"}).status_code == 401
     # A protected page redirects the browser to the login screen.
-    page = anon.get("/", follow_redirects=False)
+    page = anon.get("/app", follow_redirects=False)
     assert page.status_code == 302
     assert page.headers["location"] == "/login"
 

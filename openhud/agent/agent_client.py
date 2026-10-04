@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .diagnostics import available_optimizations, diagnose
 from .telemetry import TelemetryCollector
@@ -318,7 +318,110 @@ def execute_command(command: str, args: dict[str, Any], collector: TelemetryColl
         result = OPTIMIZATIONS[opt_id]()
         result["optimization"] = opt_id
         return result
+    if command.startswith("mt5_"):
+        return _execute_mt5(command, args, perms)
+    if command.startswith("screen_") or command == "window_list":
+        return _execute_screen(command, args, perms)
+    if command in ("mouse_move", "mouse_click", "mouse_double_click", "mouse_scroll",
+                   "keyboard_type", "keyboard_press", "open_application", "open_url",
+                   "window_focus", "window_close"):
+        return _execute_control(command, args, perms)
     return {"ok": False, "error": f"Comando desconhecido: {command}"}
+
+
+def _execute_screen(command: str, args: dict[str, Any], perms: dict[str, bool]) -> dict[str, Any]:
+    from . import screen
+
+    if not perms.get("screen", False):
+        return {"ok": False, "error": "Permissão de tela ('screen') não concedida para este dispositivo."}
+    if command == "screen_capture":
+        return screen.capture_screen()
+    if command == "screen_analyze":
+        return screen.analyze_screen()
+    if command == "screen_find":
+        result = screen.analyze_screen()
+        if not result.get("ok"):
+            return result
+        elements = screen.elements_from_dicts(result.get("elements", []))
+        matches = screen.find_matches(elements, args.get("query", ""))
+        return {"ok": True, "matches": [m.to_dict() for m in matches[:10]],
+                "screen": {"width": result["width"], "height": result["height"]}}
+    if command == "screen_highlight":
+        # Highlight = report the element's box so the UI can draw an overlay.
+        result = screen.analyze_screen()
+        if not result.get("ok"):
+            return result
+        elements = screen.elements_from_dicts(result.get("elements", []))
+        matches = screen.find_matches(elements, args.get("query", ""))
+        if not matches:
+            return {"ok": True, "highlight": None,
+                    "note": "Não encontrei esse elemento na tela atual."}
+        return {"ok": True, "highlight": matches[0].to_dict()}
+    if command == "window_list":
+        return screen.window_list()
+    return {"ok": False, "error": f"Comando de tela desconhecido: {command}"}
+
+
+def _execute_control(command: str, args: dict[str, Any], perms: dict[str, bool]) -> dict[str, Any]:
+    from . import screen
+
+    if not perms.get("control", False):
+        return {"ok": False, "error": "Permissão de controle ('control') não concedida para este dispositivo."}
+    if command == "mouse_move":
+        return screen.mouse_move(int(args.get("x", 0)), int(args.get("y", 0)))
+    if command == "mouse_click":
+        return screen.mouse_click(args.get("x"), args.get("y"), args.get("button", "left"), 1)
+    if command == "mouse_double_click":
+        return screen.mouse_click(args.get("x"), args.get("y"), args.get("button", "left"), 2)
+    if command == "mouse_scroll":
+        return screen.mouse_scroll(int(args.get("amount", 0)))
+    if command == "keyboard_type":
+        return screen.keyboard_type(str(args.get("text", "")))
+    if command == "keyboard_press":
+        return screen.keyboard_press(str(args.get("keys", "")))
+    if command == "open_application":
+        return screen.open_application(str(args.get("target", "")))
+    if command == "open_url":
+        return screen.open_url(str(args.get("url", "")))
+    if command == "window_focus":
+        return screen.window_focus(str(args.get("title", "")))
+    if command == "window_close":
+        return screen.window_close(str(args.get("title", "")))
+    return {"ok": False, "error": f"Comando de controle desconhecido: {command}"}
+
+
+def _execute_mt5(command: str, args: dict[str, Any], perms: dict[str, bool]) -> dict[str, Any]:
+    """Handle MT5 commands. Market data requires ALLOW_MARKET_READ; order
+    submission is gated by the trading permission the server already checked."""
+    from . import mt5_bridge as mt5
+
+    if not perms.get("ALLOW_MARKET_READ", True):
+        return {"ok": False, "error": "Permissão ALLOW_MARKET_READ não concedida."}
+    if command == "mt5_status":
+        return {"ok": True, "data": mt5.mt5_status()}
+    if command == "mt5_account":
+        return mt5.account_info()
+    if command == "mt5_symbol":
+        return mt5.symbol_info(args.get("symbol", ""))
+    if command == "mt5_rates":
+        return mt5.rates(args.get("symbol", ""), args.get("timeframe", "M15"), int(args.get("count", 300)))
+    if command == "mt5_positions":
+        return mt5.positions()
+    if command == "mt5_orders":
+        return mt5.orders()
+    if command == "mt5_send_order":
+        if not (perms.get("ALLOW_DEMO_TRADING") or perms.get("ALLOW_REAL_TRADING")):
+            return {"ok": False, "error": "Nenhuma permissão de trading (demo/real) concedida."}
+        return mt5.send_order(
+            symbol=args.get("symbol", ""), direction=args.get("direction", "compra"),
+            lot=float(args.get("lot", 0.01)), stop=args.get("stop"), take=args.get("take"),
+            comment=args.get("comment", "OpenHUD"),
+        )
+    if command == "mt5_close_position":
+        if not perms.get("ALLOW_ORDER_CLOSE", False):
+            return {"ok": False, "error": "Permissão ALLOW_ORDER_CLOSE não concedida."}
+        return mt5.close_position(int(args.get("ticket", 0)))
+    return {"ok": False, "error": f"Comando MT5 desconhecido: {command}"}
 
 
 # --------------------------------------------------------------------------
@@ -326,7 +429,8 @@ def execute_command(command: str, args: dict[str, Any], collector: TelemetryColl
 # --------------------------------------------------------------------------
 class AgentClient:
     def __init__(self, server: str, token: str | None, pair_code: str | None,
-                 name: str, interval: float = 1.0, verbose: bool = True) -> None:
+                 name: str, interval: float = 1.0, verbose: bool = True,
+                 on_state: "Callable[[str, str], None] | None" = None) -> None:
         self.server = server.rstrip("/")
         self.token = token
         self.pair_code = pair_code
@@ -338,6 +442,19 @@ class AgentClient:
         self.permissions = {}
         self.device_id = None
         self._ws = None
+        self._on_state = on_state
+        self.state = "disconnected"
+        self.last_error = ""
+
+    def _set_state(self, state: str, detail: str = "") -> None:
+        self.state = state
+        if detail:
+            self.last_error = detail
+        if self._on_state:
+            try:
+                self._on_state(state, detail)
+            except Exception:  # noqa: BLE001 - a UI callback must never break the agent
+                pass
 
     def log(self, msg: str) -> None:
         if self.verbose:
@@ -357,20 +474,32 @@ class AgentClient:
         backoff = 2.0
         while True:
             try:
+                self._set_state("connecting")
                 self.log(f"conectando a {self._ws_url()} …")
                 async with websockets.connect(self._ws_url(), ping_interval=20, ping_timeout=20,
                                               max_size=8 * 1024 * 1024) as ws:
                     self._ws = ws
                     await self._handshake(ws)
+                    self._set_state("connected")
                     backoff = 2.0
                     await self._pump(ws)
+            except asyncio.CancelledError:
+                self._set_state("disconnected")
+                raise
             except Exception as exc:
+                self._set_state("error", f"{type(exc).__name__}: {exc}")
                 self.log(f"desconectado ({type(exc).__name__}: {exc}); reconectando em {backoff:.0f}s")
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60.0)
 
     async def _handshake(self, ws) -> None:
         info = self.collector.system_info()
+        try:
+            from .screen import capabilities as screen_caps
+
+            info["capabilities"] = screen_caps()
+        except Exception:
+            info["capabilities"] = {}
         if self.pair_code:
             await ws.send(json.dumps({
                 "type": "pair", "code": self.pair_code, "name": self.name,
@@ -414,11 +543,21 @@ class AgentClient:
                 break
 
         last = 0.0
+        last_mt5 = 0.0
         while True:
             now = time.time()
             if now - last >= self.interval:
                 await self._send_metrics(ws)
                 last = now
+            # MT5 status is checked less often (initializing the terminal is not
+            # free) and only when the user granted market read.
+            if self.permissions.get("ALLOW_MARKET_READ", False) and now - last_mt5 >= 30:
+                try:
+                    from .mt5_bridge import mt5_status
+                    await ws.send(json.dumps({"type": "mt5_status", "data": mt5_status()}))
+                except Exception as exc:
+                    self.log(f"falha ao consultar MT5: {exc}")
+                last_mt5 = now
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=self.interval)
             except asyncio.TimeoutError:
@@ -450,7 +589,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", type=float, default=1.0, help="Intervalo de coleta em segundos")
     parser.add_argument("--tray", action="store_true", help="Mostrar ícone na bandeja do sistema")
     parser.add_argument("--print-metrics", action="store_true", help="Imprimir métricas e sair (teste)")
+    parser.add_argument("--diagnose", action="store_true",
+                        help="Rodar o diagnóstico completo do agente (OpenHUD Agent Diagnostics) e sair")
+    parser.add_argument("--diagnose-json", action="store_true",
+                        help="Diagnóstico em JSON (implica --diagnose)")
     args = parser.parse_args(argv)
+
+    if args.diagnose or args.diagnose_json:
+        from .selfcheck import main as selfcheck_main
+
+        sc_args: list[str] = []
+        if args.server:
+            sc_args += ["--server", args.server]
+        if args.diagnose_json:
+            sc_args += ["--json"]
+        return selfcheck_main(sc_args)
 
     if args.print_metrics:
         col = TelemetryCollector()

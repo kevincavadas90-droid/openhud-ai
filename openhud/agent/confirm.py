@@ -11,10 +11,11 @@ import uuid
 
 
 class PendingConfirmation:
-    def __init__(self, request_id: str, tool: str, arguments: dict) -> None:
+    def __init__(self, request_id: str, tool: str, arguments: dict, reason: str = "") -> None:
         self.request_id = request_id
         self.tool = tool
         self.arguments = arguments
+        self.reason = reason
         self.event = threading.Event()
         self.approved = False
 
@@ -24,8 +25,8 @@ class ConfirmationBroker:
         self._pending: dict[str, PendingConfirmation] = {}
         self._lock = threading.Lock()
 
-    def create(self, tool: str, arguments: dict) -> PendingConfirmation:
-        req = PendingConfirmation(uuid.uuid4().hex, tool, arguments)
+    def create(self, tool: str, arguments: dict, reason: str = "") -> PendingConfirmation:
+        req = PendingConfirmation(uuid.uuid4().hex, tool, arguments, reason)
         with self._lock:
             self._pending[req.request_id] = req
         return req
@@ -50,7 +51,8 @@ class ConfirmationBroker:
     def list_pending(self) -> list[dict]:
         with self._lock:
             return [
-                {"request_id": r.request_id, "tool": r.tool, "arguments": r.arguments}
+                {"request_id": r.request_id, "tool": r.tool, "arguments": r.arguments,
+                 "reason": r.reason}
                 for r in self._pending.values()
             ]
 

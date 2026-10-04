@@ -120,6 +120,8 @@ async def agent_ws(ws: WebSocket) -> None:
                 _record(device.id, data)
             elif mtype == "result":
                 hub.resolve_response(msg.get("id", ""), msg)
+            elif mtype == "mt5_status":
+                hub.record_mt5_status(device.id, msg.get("data") or {})
             elif mtype == "sync":
                 _record(device.id, msg.get("data") or {})
             elif mtype == "pong":

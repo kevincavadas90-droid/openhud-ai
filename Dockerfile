@@ -13,10 +13,17 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY openhud ./openhud
+COPY README.md ./
 
-# Persistent state (SQLite DB, encrypted keys, workspace) lives in /data.
+# Persistent state (SQLite DB, encrypted keys, workspace, backups) lives in /data.
 RUN mkdir -p /data
 VOLUME ["/data"]
 
 EXPOSE 8000
+# Liveness probe used by Docker/compose; /health needs no auth.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)"
+
+# Single process: uvicorn serves the API, SSE, WebSocket and the SPA. The
+# in-process job queue handles background work (video render, etc.).
 CMD ["python", "-m", "openhud"]

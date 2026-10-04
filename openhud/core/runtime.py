@@ -8,9 +8,15 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import settings
+from ..codex import CodexService
+from ..media import AudioService, ImageService, VideoService
+from ..plugins import PluginManager
 from ..tools import build_default_registry
+from ..voice import VoiceService
 from .crypto import SecretCipher
 from .db import create_database
+from .jobs import JobQueue, JobStore
+from .learning import LearningStore
 from .llm import DEFAULT_BASE_URLS, LLMClient, ProviderConfig
 from .providers import ProviderManager, build_provider_manager
 from .secrets_store import SecretStore
@@ -30,6 +36,17 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "disabled_tools": [],  # blacklist; empty = all enabled
     "max_steps": settings.max_agent_steps,
     "language": "pt-BR",
+    # AI mode + personality (Phase 4).
+    "mode": "auto",
+    "personality": {},  # trait overrides; empty = built-in defaults
+    "personality_style": "natural",
+    "personality_adaptive": True,
+    "voice_config": {},
+    # Computer assistant (Phase 5): profile, autonomy level, accessibility.
+    "profile": "standard",          # standard | beginner | power_user | accessibility
+    "autonomy_level": "guide",      # observe | guide | assisted | automatic
+    "accessibility": {},            # large_text | big_buttons | high_contrast | read_aloud | calm_voice
+    "update_url": "",               # HTTPS URL of a release manifest (Part 19)
 }
 
 # Keyed providers, in fallback preference order. Each entry describes how to
@@ -90,7 +107,40 @@ class Runtime:
         self.cipher = SecretCipher(settings.key_path)
         self.secrets = SecretStore(self.db, self.cipher)
         self.registry = build_default_registry()
+        # Phase 4 subsystems.
+        self.voice = VoiceService(self.db, secret_lookup=self.secrets.get)
+        self.images = ImageService(settings.workspace_dir, secret_lookup=self.secrets.get)
+        self.audio = AudioService(settings.workspace_dir, secret_lookup=self.secrets.get)
+        self.video = VideoService(settings.workspace_dir, secret_lookup=self.secrets.get)
+        self.codex = CodexService(settings.workspace_dir)
+        self.learning = LearningStore(self.db)
+        self.jobs = JobStore(self.db)
+        self.job_queue = JobQueue(self.jobs)
+        self.plugins = PluginManager(self.db, settings.data_dir / "plugins")
+        self._register_jobs()
         self._apply_defaults()
+        from .maintenance import record_schema_version
+
+        record_schema_version(self.db)
+
+    def _register_jobs(self) -> None:
+        def video_handler(job: dict, report) -> dict:
+            params = job.get("params") or {}
+            result = self.video.render(
+                params.get("script", ""),
+                images=params.get("images") or [],
+                voice=params.get("voice", "pt-BR-FranciscaNeural"),
+                report=report,
+            )
+            if not result.get("ok"):
+                raise RuntimeError(result.get("error", "Falha ao renderizar vídeo"))
+            return result
+
+        self.job_queue.register("video", video_handler)
+
+    def start_workers(self) -> None:
+        """Start background workers (job queue). Idempotent."""
+        self.job_queue.start()
 
     def _apply_defaults(self) -> None:
         for key, value in DEFAULT_SETTINGS.items():

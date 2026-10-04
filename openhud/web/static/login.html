@@ -34,7 +34,7 @@
           body: JSON.stringify({ password: document.getElementById("password").value }),
         });
         if (res.ok) {
-          window.location.href = "/";
+          window.location.href = "/app";
           return;
         }
         const data = await res.json().catch(() => ({}));

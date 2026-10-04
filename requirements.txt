@@ -9,3 +9,5 @@ websockets>=12
 psycopg[binary]>=3.1
 pytest>=8
 pytest-asyncio>=0.23
+# Optional: real neural TTS (voice). Without it, the browser TTS is used.
+edge-tts>=6.1

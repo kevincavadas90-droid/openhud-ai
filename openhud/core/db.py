@@ -73,6 +73,52 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_activities_conv ON activities(conversation_id, created_at);
+CREATE TABLE IF NOT EXISTS experiences (
+    id         TEXT PRIMARY KEY,
+    action     TEXT NOT NULL,
+    context    TEXT NOT NULL DEFAULT '',
+    result     TEXT NOT NULL DEFAULT '',
+    success    INTEGER NOT NULL DEFAULT 0,
+    feedback   TEXT NOT NULL DEFAULT '',
+    tags       TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS jobs (
+    id          TEXT PRIMARY KEY,
+    kind        TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'QUEUED',
+    progress    INTEGER NOT NULL DEFAULT 0,
+    params      TEXT NOT NULL DEFAULT '{}',
+    logs        TEXT NOT NULL DEFAULT '',
+    result      TEXT,
+    error       TEXT,
+    created_at  REAL NOT NULL,
+    updated_at  REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_kind ON jobs(kind, created_at);
+CREATE TABLE IF NOT EXISTS plugins (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    version     TEXT NOT NULL DEFAULT '0.0.0',
+    author      TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    source      TEXT NOT NULL DEFAULT 'native',
+    risk        TEXT NOT NULL DEFAULT 'SAFE',
+    permissions TEXT NOT NULL DEFAULT '[]',
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    builtin     INTEGER NOT NULL DEFAULT 0,
+    created_at  REAL NOT NULL,
+    updated_at  REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS voice_history (
+    id              TEXT PRIMARY KEY,
+    conversation_id TEXT,
+    transcript      TEXT NOT NULL DEFAULT '',
+    language        TEXT NOT NULL DEFAULT '',
+    kind            TEXT NOT NULL DEFAULT 'stt',
+    created_at      REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_voice_conv ON voice_history(conversation_id, created_at);
 """
 
 
@@ -333,3 +379,34 @@ class Database:
         else:
             rows = self.query("SELECT * FROM activities ORDER BY created_at DESC LIMIT ?", (limit,))
         return [dict(r) for r in rows]
+
+    # -- voice history ---------------------------------------------------
+    def add_voice_history(self, transcript: str, language: str = "",
+                          kind: str = "stt", conversation_id: str | None = None) -> dict[str, Any]:
+        vid = _new_id()
+        now = time.time()
+        self.execute(
+            "INSERT INTO voice_history(id, conversation_id, transcript, language, kind, created_at) "
+            "VALUES(?, ?, ?, ?, ?, ?)",
+            (vid, conversation_id, transcript, language, kind, now),
+        )
+        return {"id": vid, "conversation_id": conversation_id, "transcript": transcript,
+                "language": language, "kind": kind, "created_at": now}
+
+    def list_voice_history(self, conversation_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+        if conversation_id:
+            rows = self.query(
+                "SELECT * FROM voice_history WHERE conversation_id=? ORDER BY created_at DESC LIMIT ?",
+                (conversation_id, limit),
+            )
+        else:
+            rows = self.query("SELECT * FROM voice_history ORDER BY created_at DESC LIMIT ?", (limit,))
+        return [dict(r) for r in rows]
+
+    def delete_voice_history(self, vid: str | None = None) -> int:
+        if vid:
+            self.execute("DELETE FROM voice_history WHERE id=?", (vid,))
+            return 1
+        rows = self.query("SELECT COUNT(*) AS n FROM voice_history")
+        self.execute("DELETE FROM voice_history")
+        return int(rows[0]["n"]) if rows else 0

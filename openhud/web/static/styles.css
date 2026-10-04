@@ -240,3 +240,70 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 .status-line { margin-top: 10px; color: var(--muted); font-size: 13px; }
 .tool-card button[disabled] { opacity: .5; cursor: not-allowed; }
 
+/* ---- Trading / MT5 ---- */
+.risk-banner { background: #2a2210; border: 1px solid var(--warn); color: #ffe6b0; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.tr-toolbar { margin-bottom: 14px; }
+.tr-toolbar .row { align-items: flex-end; }
+.tr-toolbar-actions { display: flex; gap: 8px; align-items: flex-end; }
+.list-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.list-row small { color: var(--muted); }
+.findings-head { font-size: 14px; margin-bottom: 8px; }
+.finding small { display: block; color: var(--muted); margin-top: 4px; }
+.kv > div { padding: 2px 0; }
+.pos { color: var(--ok); }
+.neg { color: var(--err); }
+.err { color: var(--err); }
+button.danger { border-color: var(--err); color: #ff9a9a; }
+#tr-ord-preview, #tr-backtest-out, #tr-alert-out { margin-top: 8px; white-space: pre-wrap; }
+#tr-strat-list, #tr-alert-list, #tr-j-list, #tr-paper-pos, #tr-audit { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+
+/* ---- Phase 4: voice, modes, personality, codex, plugins ---- */
+.voice-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #0f1116; }
+.voice-opt { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.voice-status { font-size: 12px; color: var(--muted); margin-left: auto; }
+.voice-status.err { color: var(--err); }
+.big { font-size: 26px; font-weight: 600; }
+.muted { color: var(--muted); }
+.traits { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0; }
+.trait { display: grid; grid-template-columns: 96px 1fr 28px; align-items: center; gap: 6px; font-size: 12px; }
+.trait label { text-transform: capitalize; color: var(--muted); }
+.trait input[type=range] { width: 100%; }
+.list-item { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; }
+.list-item .row { align-items: center; }
+#cx-sandbox-out, #pv-export-out { max-height: 260px; overflow: auto; background: #0b0d12; padding: 8px; border-radius: 8px; }
+#im-result img { border-radius: 10px; }
+#vd-jobs pre { max-height: 120px; overflow: auto; }
+
+
+/* ---- Phase 5: computer assistant, task state, accessibility ---- */
+.task-bar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: #0f1116; flex-wrap: wrap; }
+.task-bar .badge { min-width: 150px; text-align: center; }
+.task-bar .badge.st-observing { background: #2a3350; color: #cdd8ff; }
+.task-bar .badge.st-understanding { background: #2a3350; color: #cdd8ff; }
+.task-bar .badge.st-waiting_user { background: #4a3a1a; color: #ffd79a; }
+.task-bar .badge.st-executing { background: #123a2c; color: #9ff0c8; }
+.task-bar .badge.st-waiting_confirmation { background: #4a2a2a; color: #ffb3b3; }
+.task-bar .badge.st-done { background: #123a2c; color: #9ff0c8; }
+.task-bar .badge.st-error { background: #4a1f1f; color: #ff9a9a; }
+.task-bar .badge.st-cancelled { background: #333; color: #bbb; }
+#task-detail { flex: 1; }
+
+.highlight-out { position: relative; border: 2px dashed var(--accent); border-radius: 8px; padding: 10px; margin-top: 8px; }
+.as-level { cursor: pointer; }
+.as-level.active { border-color: var(--accent); background: #1a2136; }
+
+/* Scam risk colours */
+.risk-low { color: var(--ok); }
+.risk-medium { color: var(--warn); }
+.risk-high { color: var(--err); font-weight: 600; }
+
+/* Accessibility helpers, toggled by body classes */
+body.a11y-large-text { font-size: 18px; }
+body.a11y-large-text .small, body.a11y-large-text small { font-size: 15px; }
+body.a11y-big-buttons button { padding: 14px 20px; font-size: 15px; }
+body.a11y-big-buttons .nav-btn { padding: 12px 16px; }
+body.a11y-high-contrast {
+  --bg: #000; --bg-elev: #0a0a0a; --bg-soft: #111; --border: #666;
+  --text: #fff; --muted: #ddd; --accent: #ffd400; --accent-2: #ffd400;
+}
+body.a11y-high-contrast a, body.a11y-high-contrast .nav-btn.active { color: #000; }

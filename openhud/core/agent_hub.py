@@ -29,11 +29,14 @@ import uuid
 from dataclasses import dataclass, field, asdict
 from typing import Any, Callable
 
+from ..trading.core import DEFAULT_TRADING_PERMISSIONS, TRADING_PERMISSION_KEYS
+
 PAIRING_TTL_SECONDS = 600.0
 DEVICE_OFFLINE_AFTER = 15.0  # seconds without a heartbeat before "offline"
 
 # Permission keys the agent understands. "commands" gates arbitrary shell
-# execution; everything else gates a read-only metric family.
+# execution; everything else gates a read-only metric family. Trading keys are
+# appended so the same permission store governs MT5 access.
 PERMISSION_KEYS = [
     "system",
     "cpu",
@@ -45,7 +48,10 @@ PERMISSION_KEYS = [
     "network",
     "games",
     "commands",
-]
+    "screen",     # screen capture + OCR analysis
+    "control",    # mouse/keyboard/window control
+    "voice",      # microphone / audio
+] + TRADING_PERMISSION_KEYS
 
 DEFAULT_PERMISSIONS = {
     "system": True,
@@ -58,6 +64,11 @@ DEFAULT_PERMISSIONS = {
     "network": False,
     "games": False,
     "commands": False,
+    # Screen/control/voice are powerful: off until the user explicitly enables them.
+    "screen": False,
+    "control": False,
+    "voice": False,
+    **DEFAULT_TRADING_PERMISSIONS,
 }
 
 # Commands that require the "commands" permission.
@@ -71,6 +82,33 @@ COMMAND_PERMISSION = {
     "diagnose": None,
     "scan_games": "games",
     "ping": None,
+    # Screen vision (read-only of the user's own screen).
+    "screen_capture": "screen",
+    "screen_analyze": "screen",
+    "screen_find": "screen",
+    "screen_highlight": "screen",
+    "window_list": "screen",
+    # Input control.
+    "mouse_move": "control",
+    "mouse_click": "control",
+    "mouse_double_click": "control",
+    "mouse_scroll": "control",
+    "keyboard_type": "control",
+    "keyboard_press": "control",
+    "open_application": "control",
+    "open_url": "control",
+    "window_focus": "control",
+    "window_close": "control",
+    # MT5 / trading commands (spec items 45-56). Read commands need
+    # ALLOW_MARKET_READ; order submission is gated per mode below.
+    "mt5_status": "ALLOW_MARKET_READ",
+    "mt5_account": "ALLOW_MARKET_READ",
+    "mt5_symbol": "ALLOW_MARKET_READ",
+    "mt5_rates": "ALLOW_MARKET_READ",
+    "mt5_positions": "ALLOW_MARKET_READ",
+    "mt5_orders": "ALLOW_MARKET_READ",
+    "mt5_send_order": "ALLOW_DEMO_TRADING",  # refined by mode in request()
+    "mt5_close_position": "ALLOW_ORDER_CLOSE",
 }
 
 
@@ -94,6 +132,11 @@ class Device:
     permissions: dict[str, bool] = field(default_factory=lambda: dict(DEFAULT_PERMISSIONS))
     metrics: dict[str, Any] = field(default_factory=dict)
     metrics_at: float = 0.0
+    # Trading state lives with the device that holds the MT5 terminal.
+    trading_mode: str = "analysis"  # learn | analysis | simulation | demo | real
+    risk_limits: dict[str, Any] = field(default_factory=dict)
+    emergency_stop: bool = False
+    mt5_status: dict[str, Any] = field(default_factory=dict)
 
     def online(self) -> bool:
         return (_now() - self.last_seen) < DEVICE_OFFLINE_AFTER
@@ -111,6 +154,10 @@ class Device:
             "permissions": self.permissions,
             "metrics": self.metrics,
             "metrics_at": self.metrics_at,
+            "trading_mode": self.trading_mode,
+            "risk_limits": self.risk_limits,
+            "emergency_stop": self.emergency_stop,
+            "mt5_status": self.mt5_status,
         }
 
 
@@ -141,6 +188,10 @@ class AgentHub:
                 dev = Device(**item)
             except TypeError:
                 continue
+            # Backfill permissions added after this device was saved (e.g. the
+            # MT5 permission keys) so the defaults stay consistent.
+            for key, value in DEFAULT_PERMISSIONS.items():
+                dev.permissions.setdefault(key, value)
             self._devices[dev.id] = dev
 
     def _save(self) -> None:
@@ -204,11 +255,56 @@ class AgentHub:
         for k, v in (permissions or {}).items():
             if k in PERMISSION_KEYS:
                 merged[k] = bool(v)
+        # Real trading can only be enabled when explicitly requested; never
+        # implied by a generic permission update.
         dev.permissions = merged
         self._save()
         self._notify("permissions", dev.id)
         self.send(dev.id, {"type": "permissions", "permissions": merged})
         return dev.public()
+
+    # -- trading state (lives with the device that runs MT5) -------------
+    def set_trading_mode(self, device_id: str, mode: str) -> dict[str, Any]:
+        from ..trading.core import MODES, MODES_REQUIRING_PERMISSION
+
+        dev = self._devices.get(device_id)
+        if not dev:
+            raise KeyError("Dispositivo não encontrado.")
+        if mode not in MODES:
+            raise ValueError(f"Modo inválido: {mode}")
+        perm = MODES_REQUIRING_PERMISSION.get(mode)
+        if perm and not dev.permissions.get(perm, False):
+            raise PermissionError(f"O modo '{mode}' exige a permissão {perm}, que está desativada.")
+        dev.trading_mode = mode
+        self._save()
+        self._notify("trading", dev.id)
+        return dev.public()
+
+    def set_risk_limits(self, device_id: str, limits: dict[str, Any]) -> dict[str, Any]:
+        from ..trading.core import RiskLimits
+
+        dev = self._devices.get(device_id)
+        if not dev:
+            raise KeyError("Dispositivo não encontrado.")
+        dev.risk_limits = RiskLimits.from_dict(limits).to_dict()
+        self._save()
+        self._notify("trading", dev.id)
+        return dev.public()
+
+    def set_emergency_stop(self, device_id: str, active: bool) -> dict[str, Any]:
+        dev = self._devices.get(device_id)
+        if not dev:
+            raise KeyError("Dispositivo não encontrado.")
+        dev.emergency_stop = bool(active)
+        self._save()
+        self._notify("trading", dev.id)
+        return dev.public()
+
+    def record_mt5_status(self, device_id: str, status: dict[str, Any]) -> None:
+        dev = self._devices.get(device_id)
+        if dev:
+            dev.mt5_status = status or {}
+            self._notify("trading", device_id)
 
     def revoke(self, device_id: str) -> bool:
         with self._lock:
@@ -269,9 +365,21 @@ class AgentHub:
             raise KeyError("Dispositivo não encontrado.")
         if not self.is_connected(device_id):
             raise RuntimeError("O PC está desconectado. Abra o OpenHUD Agent no computador.")
+        if dev.emergency_stop and command in ("mt5_send_order",):
+            raise PermissionError("STOP TRADING ativo: novas ordens estão bloqueadas.")
         perm = COMMAND_PERMISSION.get(command)
         if perm and not dev.permissions.get(perm, False):
             raise PermissionError(f"Permissão '{perm}' não concedida para este dispositivo.")
+        if command == "mt5_send_order":
+            # The mode decides which permission actually governs the order.
+            required = "ALLOW_REAL_TRADING" if dev.trading_mode == "real" else "ALLOW_DEMO_TRADING"
+            if dev.trading_mode not in ("demo", "real"):
+                raise PermissionError(
+                    "Ordens só podem ser enviadas nos modos DEMO ou REAL. "
+                    f"Modo atual: {dev.trading_mode}."
+                )
+            if not dev.permissions.get(required, False):
+                raise PermissionError(f"O modo {dev.trading_mode.upper()} exige a permissão {required}.")
         if self.loop is None:
             raise RuntimeError("Hub sem event loop ativo.")
 

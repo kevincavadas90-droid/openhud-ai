@@ -1,0 +1,11 @@
+# Dependencies for the official OpenHUD Desktop app (Windows) and the PC agent.
+# Install with:  pip install -r requirements-desktop.txt
+
+# Core server + UI (same as the web deployment).
+-r requirements.txt
+
+# PC agent telemetry + MT5 + tray.
+-r requirements-agent.txt
+
+# Build tooling for the .exe (PyInstaller) and the installer input.
+pyinstaller>=6.6

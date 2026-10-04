@@ -26,8 +26,12 @@ from ..core.llm import DEFAULT_BASE_URLS
 from ..core.providers import KEYLESS_PROVIDERS
 from ..core.runtime import KEYED_PROVIDERS, runtime
 from .agent_api import router as agent_router
+from .ai_api import router as ai_router
+from .assistant_api import router as assistant_router
 from .auth import COOKIE_NAME, SESSION_TTL, AuthManager
 from .ratelimit import chat_limiter, login_limiter
+from .site import PUBLIC_SITE_PATHS, router as site_router
+from .trading_api import router as trading_router
 
 auth = AuthManager(settings.data_dir)
 hub = init_hub(runtime.db)
@@ -36,18 +40,27 @@ hub = init_hub(runtime.db)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     scheduler.start()
+    runtime.start_workers()
     yield
     scheduler.stop()
+    runtime.job_queue.stop()
 
 
-app = FastAPI(title="OpenHUD AI", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title="OpenHUD AI", version="5.0.0", lifespan=lifespan)
 app.include_router(agent_router)
+app.include_router(trading_router)
+app.include_router(ai_router)
+app.include_router(assistant_router)
+app.include_router(site_router)
 agent = Agent(runtime)
 db = runtime.db
 
 
-# Public paths that never require a session (login flow + assets + health).
-PUBLIC_PATHS = {"/login", "/api/login", "/api/health", "/favicon.ico", "/ws/agent"}
+# Public paths that never require a session (login flow + marketing site +
+# assets + health). The site router lists its own public paths so they stay in
+# sync in one place.
+PUBLIC_PATHS = {"/login", "/api/login", "/api/health", "/health", "/ready",
+                "/favicon.ico", "/ws/agent"} | PUBLIC_SITE_PATHS
 
 
 def _client_ip(request: Request) -> str:
@@ -201,6 +214,23 @@ def health() -> dict[str, Any]:
         "configured": configured,
         "auth": auth.enabled,
     }
+
+
+@app.get("/health")
+def health_root() -> dict[str, Any]:
+    """Liveness probe for hosting platforms (no auth)."""
+    return {"status": "ok", "app": "openhud", "version": app.version}
+
+
+@app.get("/ready")
+def ready() -> JSONResponse:
+    """Readiness probe: verifies the database answers. Returns 503 if not."""
+    try:
+        db.query("SELECT 1")
+        return JSONResponse({"status": "ready", "database": "ok"})
+    except Exception as exc:
+        return JSONResponse({"status": "not_ready", "database": f"{type(exc).__name__}: {exc}"},
+                            status_code=503)
 
 
 @app.get("/api/providers")
@@ -527,7 +557,7 @@ def resolve_confirmation(request_id: str, payload: ConfirmPayload) -> dict[str, 
 app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
 
 
-@app.get("/")
+@app.get("/app")
 def index() -> FileResponse:
     return FileResponse(settings.static_dir / "index.html", headers={"Cache-Control": "no-cache"})
 
@@ -535,7 +565,10 @@ def index() -> FileResponse:
 # SPA routes: every app page is served by the single-page UI, which switches
 # views client-side. Unknown paths fall through to the UI (which redirects to
 # login when the session is missing).
-APP_PAGES = {"/app", "/chat", "/pc", "/games", "/performance", "/memory", "/projects", "/tools", "/settings"}
+APP_PAGES = {"/app", "/chat", "/pc", "/trading", "/games", "/performance", "/memory", "/projects",
+             "/tools", "/settings", "/codex", "/plugins", "/images", "/video", "/intelligence",
+             "/privacy", "/admin", "/assistant", "/accessibility", "/control-center",
+             "/files", "/tasks", "/activity"}
 
 
 @app.get("/{page}")

@@ -10,3 +10,8 @@ data/
 node_modules/
 .agent_tmp/
 workspace/
+dist/
+build/
+*.spec
+installer/Output/
+*.exe

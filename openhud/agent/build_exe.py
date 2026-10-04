@@ -31,6 +31,8 @@ def main() -> int:
         "--console",
         "--paths", str(root),
         "--hidden-import", "pynvml",
+        # Only present on Windows; PyInstaller warns but does not fail when absent.
+        "--hidden-import", "MetaTrader5",
         "--clean",
         "--noconfirm",
     ]

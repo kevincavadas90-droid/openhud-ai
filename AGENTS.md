@@ -51,6 +51,88 @@ memória + interface web. Python 3.11+, FastAPI, SQLite, front-end sem build.
 - `openhud/tools/pc.py`: `pc_metrics`, `pc_diagnose`, `pc_game_profile` no chat.
   Se o hub não estiver inicializado, devolvem erro explícito.
 
+## Módulo MT5 (trading)
+- `openhud/trading/` é **lógica pura e testável** (sem MT5, FastAPI ou rede):
+  `core.py` (permissões, modos, risco, estratégias, backtest, paper),
+  `indicators.py` (SMA/EMA/RSI/MACD/ATR/ADX/estocástico/Bollinger/VWAP +
+  price action, com `None` para barras sem valor — mantém alinhamento de índice),
+  `analysis.py` (técnica + multi-timeframe), `alerts.py`, `store.py` (tabelas
+  `trading_*`), `service.py` (orquestra site↔hub↔MT5).
+- `openhud/agent/mt5_bridge.py` roda **no PC** e importa `MetaTrader5`
+  preguiçosamente. Sem o pacote/terminal, retorna `ok=False` com o erro real —
+  nunca inventa preço/saldo/execução. `agent_client._execute_mt5` liga os
+  comandos `mt5_*`.
+- Permissões de trading em `TRADING_PERMISSION_KEYS` (mesma store de permissões
+  do PC). `ALLOW_REAL_TRADING` é **False** por padrão. `set_trading_mode` exige
+  a permissão do modo; `hub.request("mt5_send_order")` revalida modo+permissão e
+  respeita `emergency_stop`. Dispositivos antigos recebem as novas chaves via
+  backfill em `AgentHub._load`.
+- Envio de ordem é **idempotente** por `request_id` (tabela `trading_orders`) e
+  sempre auditado (`trading_audit`). Modo `real` exige `confirmed=True`.
+- API em `openhud/web/trading_api.py` (`/api/trading/*`); ferramentas de chat em
+  `openhud/tools/trading.py`; UI na view `trading` (`/trading`) do SPA.
+- **Regra de ouro**: erros reais devem aparecer. Sem MT5, as respostas são
+  "Não consigo acessar os dados do MT5 neste momento." — não fabrique dados.
+
+## Fase 4 — voz, personalidade, Codex, plugins, multimodalidade
+- `openhud/core/modes.py`: 13 modos (`auto`…`agent`) + `resolve_mode`/`resolve_auto`
+  por palavras-chave. Modos **não** concedem permissões — MT5/PC seguem com suas travas.
+- `openhud/core/personality.py`: traços 0–100 + estilo; `guidance()` injeta só tom.
+  A IA é instruída a **nunca** alegar sentimentos reais. `adapt()` ajusta por preferências.
+- `openhud/core/context.py`: monta o contexto do turno (modo, persona, memórias,
+  experiências, dicas). `openhud/core/learning.py`: experiências (sem treinar modelo).
+- `openhud/core/sanitizer.py`: `detect`/`sanitize`/`wrap_untrusted`. O laço
+  (`_UNTRUSTED_TOOLS` em `agent/loop.py`) sanitiza e embrulha saída de ferramentas
+  externas (web, arquivos, shell) como DADOS antes de ir ao modelo.
+- `openhud/core/jobs.py`: `JobStore`+`JobQueue` (worker único, FIFO, progresso/logs
+  reais). `runtime.job_queue` e `runtime.start_workers()` (chamado no lifespan).
+- `openhud/voice/`: TTS (edge/openai/browser) + STT (browser/whisper/openai).
+  Áudio **não** é salvo por padrão; histórico só com opt-in (`voice_save_history`).
+- `openhud/media/`: imagens (pollinations/openai), áudio, vídeo (ffmpeg). Sem
+  dependência opcional, retorna erro honesto — **nunca** sucesso falso.
+- `openhud/codex/`: `analyze`, `plan`, `run_tests`, changesets com diff
+  (`diffs.py`) e sandbox (`sandbox.py`). `RLIMIT_NPROC` só é aplicado se for
+  seguro (em container compartilhado ele quebraria todo fork).
+- `openhud/plugins/`: nativos + manifestos externos em `data/plugins/<nome>/`.
+  Instalar só registra o manifesto (não executa); risco ALTO/CRÍTICO exige `ack`.
+- `openhud/core/diagnostics.py`: `run_diagnostics(runtime)` checa cada subsistema
+  e reporta `ok`/`degraded`/`error` real. `openhud/web/ai_api.py`: rotas `/api/ai/*`.
+- Front-end: views `codex`, `images`, `video`, `plugins`, `intelligence`, `privacy`,
+  `admin`; barra de voz no chat; seletor de modo; personalidade/voz em Configurações.
+  Ao mudar `app.js`/`styles.css`, **bump o `?v=`** em `index.html`.
+
+## Fase 5 — assistente de computador, acessibilidade, app Windows
+- `openhud/core/assist.py`: `PROFILES`, `AUTONOMY_LEVELS` (observe/guide/assisted/
+  automatic), `TASK_STATES`, `classify_action` (palavras-chave + `TOOL_SENSITIVITY`),
+  `gate(tool, args, settings, tool_requires_confirmation, tool_is_control,
+  legacy_autonomy)`, `profile_guidance`, `detect_control_phrase`, e o
+  `TaskController` (`controller`/`task_controller`) com begin/set_state/
+  request_cancel/request_pause/wait_if_paused/finish/clear.
+  - **Gate**: ferramentas de **controle** usam varredura de texto; ferramentas
+    comuns NÃO (evita falso positivo em código/conteúdo). `run_python`/`run_shell`
+    **não** são sempre-sensíveis — só `trading_execute_order` e `delete_file`.
+    Assim a autonomia automática não trava, mas pagamentos/senha/exclusão pedem
+    confirmação sempre.
+  - `gate` SEMPRE retorna `reason` em decisões `confirm`/`block` (o loop usa).
+- `openhud/core/scam_guard.py`: `analyze_text(text, url)` → sinais + risco.
+- `openhud/agent/screen.py`: funções puras `detect_elements`, `find_matches`,
+  `summarize_screen`, `elements_from_dicts`, `capabilities`. Captura/OCR só com
+  libs nativas; degrada com erro honesto.
+- `openhud/tools/assistant.py`: `build_assistant_tools()`, `CONTROL_TOOLS`
+  (`screen_*`, `mouse_*`, `keyboard_*`, `window_list`, `pc_open_url`).
+- `openhud/web/assistant_api.py`: `/api/assistant/*` (profiles, autonomy,
+  accessibility, tasks, scam-check, screen/*, control-center, diagnose, privacy,
+  update/*, maintenance/*).
+- `openhud/desktop/`: app Windows (bandeja/`--agent`), `build.py` (PyInstaller).
+  `installer/openhud.iss` (Inno Setup; atalhos/inicialização opcionais).
+- `openhud/core/updates.py`: verificação de manifesto HTTPS (check-only, verifica
+  sha256, recusa HTTP fora de localhost). `openhud/core/maintenance.py`: backup/
+  restore SQLite com `integrity_check` + `pg_dump` para Postgres + `SCHEMA_VERSION`.
+- Front-end: views `assistant` e `control-center`; barra de estado de tarefa no
+  chat (PARAR/PAUSAR); acessibilidade em Configurações; backup/update em Privacidade.
+- `docker-compose.yml` (SQLite padrão, perfil `postgres`). `Dockerfile` com
+  `HEALTHCHECK` em `/health`.
+
 ## Armadilhas conhecidas
 - `TestClient` do Starlette serializa requisições por um único portal: um
   POST feito durante um stream SSE causa deadlock no teste (não em produção).
@@ -91,7 +173,40 @@ Ambos expõem a MESMA interface; `_translate` troca `?` por `%s`. Requer
 
 ## Deploy
 `Dockerfile` (estado em `/data`) + `render.yaml`. A porta vem de
-`OPENHUD_PORT` ou `PORT` (`config.py`).
+`OPENHUD_PORT` ou `PORT` (`config.py`). Guia completo em `DEPLOY.md`
+(comparação de hospedagem gratuita, banco Neon/Supabase, publicação e
+distribuição do instalador).
+
+## Site público e distribuição (Fase 6)
+- `openhud/web/site.py`: páginas públicas **sem login** (`/`, `/features`,
+  `/how-it-works`, `/pricing`, `/help`, `/privacy`, `/download`, `/changelog`,
+  `/version`) montadas a partir de um shell comum. As rotas públicas estão em
+  `PUBLIC_SITE_PATHS`, importado por `web/app.py` para `PUBLIC_PATHS`.
+- O app (SPA) mudou de `/` para `/app`; `PUBLIC_PATHS` libera o site; `/app` e
+  as rotas internas continuam exigindo sessão (302 `/login`). `login.html`
+  redireciona para `/app`.
+- `openhud/core/release.py`: metadados do instalador resolvidos em 3 níveis
+  (`OPENHUD_DOWNLOAD_URL` → artefato local em `dist/` ou `installer/Output/` →
+  nada). SHA-256 e tamanho são calculados do arquivo real; `published` só é
+  true com URL real. `_artifact_dirs()` lê `OPENHUD_RELEASE_DIR` de forma
+  preguiçosa (testável). `changelog()` lê `CHANGELOG.md`.
+- `openhud/agent/selfcheck.py`: diagnóstico real (`PASS`/`WARNING`/`FAIL`/
+  `NOT INSTALLED`/`NOT PERMITTED`). CLI: `python -m openhud.agent.selfcheck`,
+  `openhud-agent.exe --diagnose`. Usa `TelemetryCollector().collect()` (a
+  forma correta: `cpu`/`ram`/`gpu`/`disk`).
+- `openhud/desktop/`: `config.py` (config persistente + grupos de permissão),
+  `wizard.py` (assistente de 1ª execução), `runtime.py` (AgentClient em thread,
+  estados reais), `tray.py` (bandeja com status real). `desktop/app.py` ganhou
+  `--onboard`, `--diagnose`, `--permissions`, `--agent` com wizard.
+- `installer/openhud.iss`: gera `OpenHUD-AI-Setup.exe`; atalhos e autostart
+  opcionais/desmarcados; sem serviços; desinstalação limpa com opção de manter
+  dados. `installer/openhud.ico` gerado por `tools/make_brand_assets.py`.
+- `tools/make_release.py`: escreve `release.json` com tamanho + SHA-256 reais.
+- Permissão `voice` adicionada em `core/agent_hub.py` (`PERMISSION_KEYS` e
+  `DEFAULT_PERMISSIONS`, default `False`) e em `PERM_LABELS` (`app.js`).
+- Docs: `WINDOWS_TEST.md` (procedimento real), `DEPLOY.md`, `CHANGELOG.md`,
+  `LICENSE` (MIT). Build do `.exe`/instalador **exige Windows** — não foi
+  gerado neste ambiente Linux; nada finge que foi.
 
 ## Ollama local (keyless, permanente)
 Instalar sem pipe-to-shell: baixar
@@ -105,9 +220,24 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **39 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **150 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
-  diagnóstico e a API do agente.
+  diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
+  estratégias, backtest, alertas, paper, permissões, idempotência e as
+  situações de falha do MT5 (sem PC, sem pacote, ordem bloqueada, STOP);
+  `test_phase4.py` cobre modos, personalidade, sanitizer, contexto, learning,
+  fila de jobs, codex (análise/diff/sandbox/testes), plugins, voz,
+  diagnóstico, as rotas `/api/ai/*` e um turno SSE real com roteamento de modo;
+  `test_phase5.py` cobre perfis/autonomia/gate, classificação de sensível,
+  controller de tarefas, scam guard, funções puras de tela, a API
+  `/api/assistant/*`, updates (recusa HTTP), backup/restore e o launcher desktop;
+  `test_phase6.py` cobre o site público (páginas sem login, app protegido em
+  `/app`), `/version`/`/api/site/release`/`/api/site/changelog`, o cálculo real
+  de SHA-256 do instalador, o `selfcheck` (status + gating de permissão), a
+  config desktop, o assistente de 1ª execução, o runtime do agente e a
+  coerência do script do instalador.
+  `tests/conftest.py` limpa os rate limiters entre testes (senão o login
+  compartilhado estoura o limite e vira 401/429).
 - Deploy validado: `docker build` + container respondendo `/api/health`.
   Conexão do agente por **wss** (URL pública HTTPS) testada com pareamento.
 - `git` remoto: nenhum. O `GITHUB_TOKEN` deste ambiente é de integração

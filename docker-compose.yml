@@ -1,0 +1,50 @@
+# OpenHUD — local/VPS production stack (Part 18/21).
+#
+#   docker compose up -d --build
+#
+# Two supported modes:
+#   * SQLite (default): the whole app runs from one container with a volume.
+#   * PostgreSQL: uncomment the `db` service and the DATABASE_URL variable.
+#
+# The container binds 0.0.0.0:8000. Put it behind a TLS reverse proxy
+# (Caddy/Nginx/Traefik) for a public HTTPS deployment.
+services:
+  openhud:
+    build: .
+    image: openhud:5.0.0
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      OPENHUD_HOST: 0.0.0.0
+      OPENHUD_PORT: "8000"
+      OPENHUD_DATA_DIR: /data
+      OPENHUD_WORKSPACE: /data/workspace
+      OPENHUD_AUTH: "on"
+      # Set a strong password (required in public deployments).
+      OPENHUD_PASSWORD: ${OPENHUD_PASSWORD:?defina OPENHUD_PASSWORD}
+      OPENHUD_SESSION_SECRET: ${OPENHUD_SESSION_SECRET:-}
+      # Optional provider keys (any one is enough; keyless fallback otherwise).
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # PostgreSQL (optional): uncomment to use the db service below.
+      # DATABASE_URL: postgresql://openhud:openhud@db:5432/openhud
+    volumes:
+      - openhud-data:/data
+
+  # Optional PostgreSQL. Enable with: docker compose --profile postgres up -d
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: openhud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openhud}
+      POSTGRES_DB: openhud
+    volumes:
+      - openhud-pg:/var/lib/postgresql/data
+
+volumes:
+  openhud-data:
+  openhud-pg:
