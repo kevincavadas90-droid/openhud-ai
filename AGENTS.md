@@ -26,10 +26,30 @@ memória + interface web. Python 3.11+, FastAPI, SQLite, front-end sem build.
 - Ferramentas novas: criar em `openhud/tools/`, herdar de `Tool`, e registrar
   em `build_default_registry()` (`openhud/tools/__init__.py`). Marcar
   `requires_confirmation = True` se alterar estado.
+- Seleção de ferramentas: a config usa **blacklist** (`disabled_tools`), não
+  whitelist — ferramentas novas ficam habilitadas por padrão. Não reintroduza
+  `enabled_tools`.
 - Caminhos de arquivo devem passar por `_resolve`/`_safe_path` para ficar
   dentro do workspace.
 - O laço do agente (`openhud/agent/loop.py`) é o dono da persistência do turno
   do usuário. A camada HTTP não deve duplicar isso.
+
+## Agente de PC (PC↔site)
+- `openhud/core/agent_hub.py`: singleton `get_hub()`; hub WebSocket com
+  pareamento por código de uso único, tokens de dispositivo e permissões por
+  categoria (`PERMISSION_KEYS`). O PC **sempre** inicia a conexão (funciona
+  atrás de NAT). `hub.loop` é setado no handler WS para permitir requisições
+  servidor→PC.
+- `openhud/agent/telemetry.py` + `diagnostics.py`: rodam **no PC**, não no
+  servidor. Sem GPU NVIDIA, o diagnóstico reporta "GPU não detectada" — nunca
+  inventa métricas.
+- `openhud/agent/agent_client.py`: cliente do PC (`--server`, `--pair`,
+  `--name`, `--interval`). Guarda o token e reconecta sozinho.
+  `build_exe.py` gera um `.exe` com PyInstaller.
+- `openhud/web/agent_api.py`: REST (`/api/agents*`) + WS (`/ws/agent`). O WS
+  está em `PUBLIC_PATHS` (autentica pelo token do dispositivo, não pelo cookie).
+- `openhud/tools/pc.py`: `pc_metrics`, `pc_diagnose`, `pc_game_profile` no chat.
+  Se o hub não estiver inicializado, devolvem erro explícito.
 
 ## Armadilhas conhecidas
 - `TestClient` do Starlette serializa requisições por um único portal: um
@@ -37,6 +57,10 @@ memória + interface web. Python 3.11+, FastAPI, SQLite, front-end sem build.
   Resolva confirmações a partir de uma thread auxiliar nos testes.
 - O terminal desta sandbox rejeita comandos multi-linha colados; escreva
   scripts em arquivo e execute com `bash arquivo.sh`.
+- Cache de SPA: `index.html` é servido com `Cache-Control: no-cache` e os
+  assets usam `?v=N`. Ao mudar `app.js`/`styles.css`, **bump o `?v=`** em
+  `index.html` — senão o navegador continua rodando o JS antigo e parece que
+  a correção "não funcionou".
 
 ## Configuração de modelo
 Provedores: openai, anthropic, groq, deepseek, openrouter, cerebras, mistral,
@@ -81,5 +105,11 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: 29 testes em `tests/`. `test_api.py` faz login real no import
-  (`OPENHUD_PASSWORD=test-password`).
+- Suíte: **39 testes** em `tests/`. `test_api.py` faz login real no import
+  (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
+  diagnóstico e a API do agente.
+- Deploy validado: `docker build` + container respondendo `/api/health`.
+  Conexão do agente por **wss** (URL pública HTTPS) testada com pareamento.
+- `git` remoto: nenhum. O `GITHUB_TOKEN` deste ambiente é de integração
+  (`Resource not accessible by integration`) — **não** cria repositório nem
+  faz push. Para publicar, use um token de usuário com escopo `repo`.
