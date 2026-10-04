@@ -289,7 +289,10 @@ Instalar sem pipe-to-shell: baixar
   `https://work-1-<...>.prod-runtime.all-hands.dev` (porta 12000) serve o site
   sem login; `/download` mostra o ZIP do código-fonte com SHA-256 real e
   `/download/source` entrega o arquivo. O instalador Windows aparece como "não
-  publicado" (honesto — nenhum `.exe` foi compilado no Linux).
+  publicado" (honesto — nenhum `.exe` foi compilado no Linux). Para subir o
+  código novo, reinicie com `nohup bash run_public_demo.sh &` (o script lê a
+  senha de `data/.demo_login`, nunca impressa). O cadastro/login de contas
+  (`/register`, `/login`, `/account`) também está no ar.
 - **Empacotamento**: `python tools/make_source_zip.py` gera
   `OpenHUD-AI-Complete-<versão>.zip` a partir de `git ls-files` (sem segredos) +
   `.sha256`. O ZIP é artefato de build e **não** é versionado.
