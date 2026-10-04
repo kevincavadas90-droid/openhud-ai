@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OpenHUD</title>
-<link rel="stylesheet" href="/static/styles.css" />
+<title>OpenHUD AI</title>
+<link rel="stylesheet" href="/static/styles.css?v=4" />
 </head>
 <body>
 <div id="app">
@@ -12,28 +12,24 @@
     <div class="brand">
       <span class="logo">◆</span>
       <div>
-        <h1>OpenHUD</h1>
-        <small>IA multifuncional</small>
+        <h1>OpenHUD AI</h1>
+        <small>IA multifuncional + agente de PC</small>
       </div>
     </div>
     <button id="new-conv" class="primary">+ Nova conversa</button>
     <nav class="nav">
+      <button data-view="pc" class="nav-btn">Painel do PC</button>
       <button data-view="chat" class="nav-btn active">Chat</button>
+      <button data-view="games" class="nav-btn">Jogos</button>
+      <button data-view="performance" class="nav-btn">Desempenho</button>
+      <button data-view="projects" class="nav-btn">Projetos</button>
+      <button data-view="memory" class="nav-btn">Memória</button>
       <button data-view="tools" class="nav-btn">Ferramentas</button>
       <button data-view="files" class="nav-btn">Arquivos</button>
-      <button data-view="memory" class="nav-btn">Memória</button>
       <button data-view="tasks" class="nav-btn">Tarefas</button>
       <button data-view="activity" class="nav-btn">Atividades</button>
       <button data-view="settings" class="nav-btn">Configurações</button>
     </nav>
-    <div class="sidebar-section">
-      <label>Projeto</label>
-      <select id="project-select"><option value="">Sem projeto</option></select>
-      <div class="row">
-        <input id="project-name" placeholder="Novo projeto" />
-        <button id="add-project" title="Criar projeto">+</button>
-      </div>
-    </div>
     <div class="sidebar-section grow">
       <label>Conversas</label>
       <ul id="conv-list"></ul>
@@ -43,6 +39,95 @@
   </aside>
 
   <main id="main">
+    <!-- DASHBOARD / PC -->
+    <section class="view" id="view-pc">
+      <header class="topbar">
+        <div>
+          <h2>Painel do PC</h2>
+          <small id="pc-sub">conecte um computador para ver dados reais</small>
+        </div>
+        <div class="badges">
+          <span id="pc-status" class="badge offline">🔴 PC desconectado</span>
+          <button id="pc-refresh" class="ghost small">atualizar</button>
+        </div>
+      </header>
+
+      <div id="pc-empty" class="empty card">
+        <h3>Nenhum computador conectado</h3>
+        <p>Instale o <b>OpenHUD Agent</b> no PC e conecte usando um código de pareamento.</p>
+        <button class="primary" data-goto="connect">Conectar este computador</button>
+      </div>
+
+      <div id="pc-dash" class="hidden">
+        <div class="gauges">
+          <div class="gauge" id="g-cpu"><span class="g-label">CPU</span><span class="g-val">—</span><span class="g-sub">—</span><div class="bar"><i></i></div></div>
+          <div class="gauge" id="g-gpu"><span class="g-label">GPU</span><span class="g-val">—</span><span class="g-sub">—</span><div class="bar"><i></i></div></div>
+          <div class="gauge" id="g-ram"><span class="g-label">RAM</span><span class="g-val">—</span><span class="g-sub">—</span><div class="bar"><i></i></div></div>
+          <div class="gauge" id="g-vram"><span class="g-label">VRAM</span><span class="g-val">—</span><span class="g-sub">—</span><div class="bar"><i></i></div></div>
+          <div class="gauge" id="g-temp"><span class="g-label">Temperatura</span><span class="g-val">—</span><span class="g-sub">—</span><div class="bar"><i></i></div></div>
+          <div class="gauge" id="g-net"><span class="g-label">Rede</span><span class="g-val">—</span><span class="g-sub">—</span><div class="bar"><i></i></div></div>
+        </div>
+
+        <div class="card chart-card">
+          <h3>Histórico (últimos 5 min)</h3>
+          <canvas id="chart" width="900" height="220"></canvas>
+          <div class="legend">
+            <span><i class="dot cpu"></i> CPU</span>
+            <span><i class="dot gpu"></i> GPU</span>
+            <span><i class="dot ram"></i> RAM</span>
+          </div>
+        </div>
+
+        <div class="row actions">
+          <button class="primary" data-act="diagnose">Analisar PC</button>
+          <button class="ghost" data-goto="games">Otimizar jogo</button>
+          <button class="ghost" data-goto="chat">Abrir chat</button>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h3>Alertas e recomendações</h3>
+            <div id="pc-findings" class="findings"></div>
+          </div>
+          <div class="card">
+            <h3>Processos (top CPU)</h3>
+            <div id="pc-procs" class="list mono small"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONNECT -->
+    <section class="view" id="view-connect">
+      <header class="topbar"><h2>Conectar este computador</h2><small>O site nunca acessa o PC diretamente — o agente inicia a conexão</small></header>
+      <div class="grid two">
+        <div class="card">
+          <h3>1. Código de pareamento</h3>
+          <p class="hint">Válido por 10 minutos e de uso único.</p>
+          <div id="pair-code" class="pair-code">— — — — — —</div>
+          <button id="pair-generate" class="primary">Gerar código</button>
+        </div>
+        <div class="card">
+          <h3>2. Instalar e rodar o OpenHUD Agent no PC</h3>
+          <pre class="mono small">pip install -r requirements.txt
+python -m openhud.agent.agent_client \
+  --server <span id="pair-server">https://SEU-OPENHUD</span> \
+  --pair <span id="pair-echo">CODIGO</span></pre>
+          <p class="hint">Windows: use o mesmo comando no PowerShell (Python 3.10+). O agente guarda o token e reconecta sozinho depois.</p>
+          <div id="connect-status" class="status-line">aguardando conexão…</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Permissões</h3>
+        <p class="hint">Nada é coletado sem autorização. Altere a qualquer momento.</p>
+        <div id="perm-list" class="perm-grid"></div>
+      </div>
+      <div class="card">
+        <h3>Dispositivos</h3>
+        <div id="device-list" class="list"></div>
+      </div>
+    </section>
+
     <!-- CHAT -->
     <section class="view active" id="view-chat">
       <header class="topbar">
@@ -57,14 +142,61 @@
       </header>
       <div id="messages" class="messages">
         <div class="empty">
-          <h3>Bem-vindo ao OpenHUD</h3>
-          <p>Peça tarefas concretas: programar, pesquisar, automatizar, analisar dados, criar conteúdo.</p>
+          <h3>Bem-vindo ao OpenHUD AI</h3>
+          <p>Peça tarefas concretas: programar, pesquisar, automatizar, analisar dados — e analisar o seu PC.</p>
         </div>
       </div>
       <form id="composer" class="composer">
         <textarea id="input" placeholder="Descreva a tarefa… (Enter envia, Shift+Enter quebra linha)" rows="2"></textarea>
         <button type="submit" id="send" class="primary">Enviar</button>
       </form>
+    </section>
+
+    <!-- GAMES -->
+    <section class="view" id="view-games">
+      <header class="topbar">
+        <div><h2>Jogos</h2><small>perfis e otimização por jogo</small></div>
+        <button id="games-scan" class="ghost small">detectar jogos instalados</button>
+      </header>
+      <div class="card">
+        <h3>Adicionar jogo</h3>
+        <div class="row">
+          <input id="game-name" placeholder="Ex.: FiveM, Fortnite, CS2…" />
+          <input id="game-fps" type="number" placeholder="FPS médio (opcional)" style="max-width:180px" />
+          <button id="game-analyze" class="primary">Analisar jogo</button>
+        </div>
+      </div>
+      <div id="games-detected" class="card hidden"><h3>Detectados</h3><div id="games-detected-list" class="list"></div></div>
+      <div id="games-list" class="grid"></div>
+    </section>
+
+    <!-- PERFORMANCE -->
+    <section class="view" id="view-performance">
+      <header class="topbar"><h2>Desempenho</h2><small>otimizações seguras e reversíveis</small></header>
+      <div id="opt-list" class="grid"></div>
+      <div class="card"><h3>Resultado</h3><div id="opt-result" class="list mono small">Nenhuma otimização executada ainda.</div></div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section class="view" id="view-projects">
+      <header class="topbar"><h2>Projetos</h2><small>agrupe conversas por projeto</small></header>
+      <form id="project-form" class="row">
+        <input id="project-name" placeholder="Nome do projeto" />
+        <input id="project-desc" placeholder="descrição (opcional)" />
+        <button class="primary">Criar</button>
+      </form>
+      <div id="projects-list" class="list"></div>
+    </section>
+
+    <!-- MEMORY -->
+    <section class="view" id="view-memory">
+      <header class="topbar"><h2>Memória de longo prazo</h2><small>preferências, decisões e contexto do PC</small></header>
+      <form id="memory-form" class="row">
+        <input id="memory-content" placeholder="Nova memória…" />
+        <input id="memory-tags" placeholder="tags" style="max-width:160px" />
+        <button class="primary">Adicionar</button>
+      </form>
+      <div id="memory-list" class="list"></div>
     </section>
 
     <!-- TOOLS -->
@@ -89,20 +221,9 @@
       </div>
     </section>
 
-    <!-- MEMORY -->
-    <section class="view" id="view-memory">
-      <header class="topbar"><h2>Memória de longo prazo</h2><small>Preferências, decisões e contexto</small></header>
-      <form id="memory-form" class="row">
-        <input id="memory-content" placeholder="Nova memória…" />
-        <input id="memory-tags" placeholder="tags" style="max-width:160px" />
-        <button class="primary">Adicionar</button>
-      </form>
-      <div id="memory-list" class="list"></div>
-    </section>
-
     <!-- TASKS -->
     <section class="view" id="view-tasks">
-      <header class="topbar"><h2>Tarefas agendadas</h2><small>Execuções recorrentes em segundo plano</small></header>
+      <header class="topbar"><h2>Tarefas agendadas</h2><small>execuções recorrentes em segundo plano</small></header>
       <form id="task-form" class="row">
         <input id="task-name" placeholder="Nome da tarefa" style="max-width:220px" />
         <input id="task-prompt" placeholder="O que o agente deve fazer…" />
@@ -114,13 +235,13 @@
 
     <!-- ACTIVITY -->
     <section class="view" id="view-activity">
-      <header class="topbar"><h2>Registro de atividades</h2><small>O que o agente fez</small></header>
+      <header class="topbar"><h2>Registro de atividades</h2><small>o que o agente fez</small></header>
       <div id="activity-list" class="list mono"></div>
     </section>
 
     <!-- SETTINGS -->
     <section class="view" id="view-settings">
-      <header class="topbar"><h2>Configurações</h2><small>Modelo, provedor, autonomia e chaves</small></header>
+      <header class="topbar"><h2>Configurações</h2><small>modelo, provedor, autonomia e chaves</small></header>
       <div class="settings-grid">
         <div class="card">
           <h3>Modelo</h3>
@@ -154,8 +275,11 @@
               <option value="openai">openai</option>
               <option value="anthropic">anthropic</option>
               <option value="groq">groq</option>
+              <option value="google">google</option>
               <option value="deepseek">deepseek</option>
               <option value="openrouter">openrouter</option>
+              <option value="cerebras">cerebras</option>
+              <option value="mistral">mistral</option>
               <option value="brave">brave (busca)</option>
             </select>
             <input id="secret-value" type="password" placeholder="valor da chave" />
@@ -182,6 +306,6 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=4"></script>
 </body>
 </html>

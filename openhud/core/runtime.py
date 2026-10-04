@@ -27,7 +27,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "autonomy": "supervised",  # supervised | autonomous
     "allow_network": True,
     "supports_tools": True,
-    "enabled_tools": [],  # empty = all
+    "disabled_tools": [],  # blacklist; empty = all enabled
     "max_steps": settings.max_agent_steps,
     "language": "pt-BR",
 }
@@ -112,10 +112,16 @@ class Runtime:
 
     # -- tool selection --------------------------------------------------
     def enabled_tool_names(self) -> set[str] | None:
-        enabled = self.db.get_setting("enabled_tools") or []
-        if not enabled:
+        """Return the set of tools to send to the model, or None for all.
+
+        ``disabled_tools`` is a blacklist: new tools added by an upgrade are
+        enabled by default, so a stored list can never silently hide them.
+        """
+        disabled = self.db.get_setting("disabled_tools") or []
+        if not disabled:
             return None
-        return set(enabled)
+        known = {t.name for t in self.registry.all()}
+        return known - set(disabled)
 
     def tool_summaries(self) -> list[str]:
         enabled = self.enabled_tool_names()

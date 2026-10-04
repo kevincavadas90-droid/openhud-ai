@@ -1,0 +1,9 @@
+# Dependencies for the OpenHUD Agent running on the user's PC.
+# Install with:  pip install -r requirements-agent.txt
+websockets>=12
+psutil>=5.9
+# Optional but recommended: GPU metrics on NVIDIA cards.
+nvidia-ml-py>=12
+# Optional: system-tray icon on Windows/macOS.
+pystray>=0.19 ; platform_system != "Linux"
+Pillow>=10 ; platform_system != "Linux"

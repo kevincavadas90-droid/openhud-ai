@@ -190,3 +190,53 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
   #sidebar { position: absolute; z-index: 20; width: 280px; height: 100%; }
   .files-layout { grid-template-columns: 1fr; }
 }
+
+/* ===================== OpenHUD AI: PC dashboard ===================== */
+.card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.card h3 { font-size: 14px; margin-bottom: 10px; }
+.hint { color: var(--muted); font-size: 12px; }
+.meta { color: var(--muted); font-size: 12px; }
+.mono { font-family: var(--mono); }
+.small { font-size: 12px; }
+
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.gauge { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.gauge .g-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+.gauge .g-val { font-size: 26px; font-weight: 700; }
+.gauge .g-sub { color: var(--muted); font-size: 11px; min-height: 14px; }
+.gauge .bar { height: 7px; background: #0a0d15; border-radius: 6px; overflow: hidden; margin-top: 6px; }
+.gauge .bar > i { display: block; height: 100%; width: 0%; background: #22d3ee; transition: width .3s ease, background .3s ease; }
+
+.chart-card { margin-bottom: 14px; }
+#chart { width: 100%; height: auto; background: #0a0d15; border-radius: 8px; }
+.legend { display: flex; gap: 16px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+.legend .dot.cpu { background: #22d3ee; }
+.legend .dot.gpu { background: #a78bfa; }
+.legend .dot.ram { background: #34d399; }
+
+.actions { margin: 14px 0; gap: 8px; flex-wrap: wrap; }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+.badge.online { border-color: var(--ok); color: var(--ok); }
+.badge.offline { border-color: var(--err); color: var(--err); }
+
+.findings { display: flex; flex-direction: column; gap: 10px; }
+.bottleneck { background: #172033; border-left: 3px solid var(--warn); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; }
+.bottleneck.ok { border-left-color: var(--ok); }
+.finding { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.finding .f-title { font-weight: 650; margin-bottom: 6px; }
+.finding .f-row { font-size: 13px; color: #c7cdda; margin: 3px 0; }
+.finding.risk-high { border-left: 3px solid var(--err); }
+.finding.risk-medium { border-left: 3px solid var(--warn); }
+.finding.risk-low { border-left: 3px solid var(--ok); }
+
+.error-box { background: #2a1720; border: 1px solid var(--err); border-radius: 10px; padding: 12px 14px; color: #ffd7d7; font-size: 13px; line-height: 1.6; }
+.error-box b { color: #ff9a9a; }
+
+.pair-code { font-family: var(--mono); font-size: 34px; letter-spacing: 8px; text-align: center; padding: 18px; background: #0a0d15; border-radius: 10px; margin: 10px 0; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.check.perm { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; background: var(--bg-soft); border-radius: 8px; }
+.status-line { margin-top: 10px; color: var(--muted); font-size: 13px; }
+.tool-card button[disabled] { opacity: .5; cursor: not-allowed; }
+

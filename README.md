@@ -269,13 +269,81 @@ Sem nenhuma chave de API, a instalação nova responde via **Pollinations**
 mais confiáveis, adicione uma chave gratuita de **Groq** ou **Google AI
 Studio** em Configurações.
 
+### Validado neste ambiente
+- `docker build` concluído; container sobe, responde `/api/health` e serve o
+  login (modo keyless, `provider: pollinations`).
+- Conexão do agente pela URL pública **HTTPS/WSS** funciona (pareamento +
+  token), então o mesmo fluxo serve para um host na nuvem.
+
+### Onde hospedar de graça (pesquisa de outubro/2026)
+| Plataforma | Cartão? | WebSocket | Observação |
+|---|---|---|---|
+| **Render** (free) | não | sim | dorme após 15 min sem tráfego; acorda em ~60 s |
+| **Railway** (free) | não | sim | US$ 1/mês de crédito; pausa quando acaba |
+| **Google Cloud Run** | sim | sim | cota mensal; exige cartão |
+| **Fly.io** | sim | sim | sem free tier novo; ~US$ 2/mês |
+
+Para uso 24/7 sem dormir, a opção mais barata é um VPS próprio (~US$ 3–5/mês)
+ou o Fly.io pago. O `render.yaml` já está pronto para o caminho sem cartão.
+
+---
+
+## 10c. Agente de PC (OpenHUD Agent)
+
+O site **nunca** acessa o PC diretamente: o agente instalado no PC inicia a
+conexão de saída (WebSocket) para o servidor. Isso funciona atrás de NAT, sem
+abrir portas e sem IP fixo.
+
+### Fluxo de conexão
+1. No site, abra **Painel do PC → Conectar este computador → Gerar código**.
+   O código vale 10 minutos e é de uso único.
+2. No PC, rode o agente (Python 3.10+):
+   ```bash
+   pip install -r requirements-agent.txt
+   python -m openhud.agent.agent_client \
+     --server https://SEU-OPENHUD --pair CODIGO --name "Meu PC"
+   ```
+3. O agente guarda um **token** e reconecta sozinho depois
+   (`--server` apenas, sem `--pair`). Revogue um dispositivo a qualquer
+   momento no painel.
+
+### Windows
+- O mesmo comando funciona no PowerShell. Para uso diário, crie um `.exe`
+  autônomo (sem Python instalado):
+  ```powershell
+  pip install pyinstaller -r requirements-agent.txt
+  python -m openhud.agent.build_exe
+  dist\openhud-agent.exe --server https://SEU-OPENHUD --pair CODIGO
+  ```
+- Para iniciar com o Windows, coloque um atalho do `.exe` na pasta
+  `shell:startup`.
+
+### Permissões (nada é coletado sem autorização)
+`system`, `cpu`, `gpu`, `ram`, `storage`, `processes`, `temperatures`,
+`network`, `games`, `commands`. Cada uma pode ser ligada/desligada no painel;
+o servidor bloqueia o que não foi autorizado e devolve erro explícito.
+
+### Ferramentas de PC no chat
+Com um dispositivo conectado, o agente de IA pode chamar:
+- `pc_metrics` — CPU/RAM/GPU/disco/rede/processos em tempo real;
+- `pc_diagnose` — gargalos e recomendações (com dado observado, análise,
+  recomendação, impacto e risco);
+- `pc_game_profile` — perfil por jogo (FPS medido, ajustes sugeridos).
+
+As respostas citam sempre os números reais medidos; quando não há dado
+(ex.: GPU ausente), o agente informa isso em vez de inventar.
+
 ---
 
 ## 11. Status das funcionalidades
 
 ### Concluídas e verificadas
 - Agente com laço de execução, streaming e persistência.
-- 12 ferramentas reais + sistema de confirmação e autonomia.
+- 15 ferramentas reais (incl. `pc_metrics`, `pc_diagnose`, `pc_game_profile`)
+  + sistema de confirmação e autonomia.
+- **Agente de PC (PC↔site)**: hub WebSocket, pareamento por código de uso
+  único, tokens de dispositivo, permissões por categoria, telemetria real
+  (CPU/RAM/GPU/disco/rede/processos), diagnóstico de gargalos e perfis de jogo.
 - Múltiplos provedores de modelo e chaves criptografadas.
 - **Cadeia de fallback** entre 11 provedores + Ollama local, com *retry* de
   falhas transitórias e relatório honesto das tentativas.
@@ -284,18 +352,24 @@ Studio** em Configurações.
 - **PostgreSQL** opcional via `DATABASE_URL` (testado contra Postgres real).
 - Memória de longo prazo, histórico, projetos e registro de atividades.
 - Análise de dados (CSV/JSON) e tarefas agendadas em segundo plano.
-- Interface web completa e responsiva (com indicador do provedor e logout).
-- `Dockerfile` + `render.yaml` para implantação gratuita.
-- Suíte de **29 testes** automatizados, todos passando.
+- Interface web completa e responsiva (painel do PC, jogos, desempenho,
+  conexão, chat, com indicador do provedor e logout).
+- `Dockerfile` + `render.yaml`; **build do container validado** neste ambiente.
+- Suíte de **39 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
 - **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas
   mais confiáveis; sem ela, usa-se Pollinations (keyless) ou Ollama local.
 - **Chave do Brave Search** é opcional; sem ela, a busca usa DuckDuckGo.
 - **URL permanente**: depende de uma conta em Render/Railway/Fly ou de um
-  servidor próprio — o `Dockerfile` está pronto para qualquer um deles.
+  servidor próprio — o `Dockerfile` está pronto para qualquer um deles. A
+  criação do repositório Git na nuvem precisa de um token com permissão de
+  criar repositório (o token deste ambiente é de integração, sem essa
+  permissão); o código e os arquivos de deploy já estão prontos.
 - **Banco permanente**: crie um Postgres gratuito (Neon/Supabase/Aiven) e
   defina `DATABASE_URL`; sem isso o estado fica no disco local.
+- **Métricas de GPU**: exigem uma GPU NVIDIA com driver e `nvidia-ml-py` no
+  PC; sem isso, o diagnóstico informa "GPU não detectada" em vez de inventar.
 - Integrações com serviços de terceiros (e-mail, planilhas na nuvem,
   agendamento) não estão incluídas por padrão — o sistema é extensível:
   adicione novas ferramentas em `openhud/tools/` e registre-as em

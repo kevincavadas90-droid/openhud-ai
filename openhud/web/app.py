@@ -21,13 +21,16 @@ from ..agent.confirm import broker
 from ..agent.loop import Agent
 from ..agent.scheduler import scheduler
 from ..config import settings
+from ..core.agent_hub import init_hub
 from ..core.llm import DEFAULT_BASE_URLS
 from ..core.providers import KEYLESS_PROVIDERS
 from ..core.runtime import KEYED_PROVIDERS, runtime
+from .agent_api import router as agent_router
 from .auth import COOKIE_NAME, SESSION_TTL, AuthManager
 from .ratelimit import chat_limiter, login_limiter
 
 auth = AuthManager(settings.data_dir)
+hub = init_hub(runtime.db)
 
 
 @asynccontextmanager
@@ -37,13 +40,14 @@ async def lifespan(_: FastAPI):
     scheduler.stop()
 
 
-app = FastAPI(title="OpenHUD", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="OpenHUD AI", version="3.0.0", lifespan=lifespan)
+app.include_router(agent_router)
 agent = Agent(runtime)
 db = runtime.db
 
 
 # Public paths that never require a session (login flow + assets + health).
-PUBLIC_PATHS = {"/login", "/api/login", "/api/health", "/favicon.ico"}
+PUBLIC_PATHS = {"/login", "/api/login", "/api/health", "/favicon.ico", "/ws/agent"}
 
 
 def _client_ip(request: Request) -> str:
@@ -364,6 +368,30 @@ def list_tools() -> list[dict[str, Any]]:
     ]
 
 
+@app.get("/api/pc/status")
+def pc_status() -> dict[str, Any]:
+    """Quick view of connected PCs, used by the chat to know if PC tools apply."""
+    try:
+        hub = runtime_hub()
+        devices = hub.list_devices()
+    except Exception:
+        devices = []
+    real = [d for d in devices if d["id"] != "local"]
+    online = [d for d in real if d["online"]]
+    return {
+        "connected": bool(online),
+        "count": len(real),
+        "online": len(online),
+        "devices": [{"id": d["id"], "name": d["name"], "online": d["online"]} for d in real],
+    }
+
+
+def runtime_hub():
+    from ..core.agent_hub import get_hub
+
+    return get_hub()
+
+
 @app.get("/api/models")
 def list_models() -> dict[str, Any]:
     return {
@@ -501,4 +529,17 @@ app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="stat
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(settings.static_dir / "index.html")
+    return FileResponse(settings.static_dir / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+# SPA routes: every app page is served by the single-page UI, which switches
+# views client-side. Unknown paths fall through to the UI (which redirects to
+# login when the session is missing).
+APP_PAGES = {"/app", "/chat", "/pc", "/games", "/performance", "/memory", "/projects", "/tools", "/settings"}
+
+
+@app.get("/{page}")
+def spa_page(page: str) -> FileResponse:
+    if f"/{page}" in APP_PAGES:
+        return FileResponse(settings.static_dir / "index.html", headers={"Cache-Control": "no-cache"})
+    raise HTTPException(404, "Página não encontrada")
