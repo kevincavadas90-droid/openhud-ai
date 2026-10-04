@@ -7,10 +7,16 @@ OpenHUD é uma IA pessoal multifuncional: agente LLM + ferramentas reais +
 memória + interface web. Python 3.11+, FastAPI, SQLite, front-end sem build.
 
 ## Comandos essenciais
-- Instalar/rodar: `./run.sh` (cria `.venv` e inicia em `:8000`)
+- Tudo de uma vez: `./start.sh` (idempotente: venv + Ollama local + servidor)
+- Só o servidor: `./run.sh` (cria `.venv` e inicia)
 - Rodar servidor: `.venv/bin/python -m openhud`
 - Testes: `.venv/bin/python -m pytest -q`
 - Teste único: `.venv/bin/python -m pytest tests/test_api.py::test_streaming_turn_autonomous -q`
+
+> Esta sandbox é reiniciada periodicamente e **perde processos e arquivos
+> fora do repo** (o Ollama em `/usr/local` some). Depois de qualquer reinício,
+> rode `./start.sh` — ele reinstala o Ollama e sobe tudo. Não há daemon cron
+> no container, então a recuperação é manual.
 
 ## Convenções
 - Estado de runtime em `data/` (ignorado no git). Workspace do agente em

@@ -34,8 +34,13 @@ Requer Python 3.11+.
 
 ```bash
 git clone <repo> && cd project
-./run.sh            # cria o venv, instala dependências e inicia
+./start.sh          # idempotente: venv + Ollama local + servidor web
 ```
+
+O `start.sh` sobe tudo o que o app precisa — inclusive um **Ollama local**
+(keyless, ilimitado) — e pode ser rodado quantas vezes quiser: o que já estiver
+no ar é reaproveitado. Use `./run.sh` se quiser apenas o servidor Python
+(sem Ollama).
 
 Ou manualmente:
 
