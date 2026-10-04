@@ -220,7 +220,7 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **151 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **175 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
   diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
   estratégias, backtest, alertas, paper, permissões, idempotência e as
@@ -240,6 +240,20 @@ Instalar sem pipe-to-shell: baixar
   compartilhado estoura o limite e vira 401/429).
 - Deploy validado: `docker build` + container respondendo `/api/health`.
   Conexão do agente por **wss** (URL pública HTTPS) testada com pareamento.
-- `git` remoto: nenhum. O `GITHUB_TOKEN` deste ambiente é de integração
-  (`Resource not accessible by integration`) — **não** cria repositório nem
-  faz push. Para publicar, use um token de usuário com escopo `repo`.
+- `git` remoto: nenhum. O `GITHUB_TOKEN` deste ambiente autentica como o
+  usuário `kevincavadas90-droid`, mas veio **sem escopos** (`x-oauth-scopes`
+  vazio) e com 0 repositórios. Criar repo/push não foi testado — exige token de
+  usuário com escopo `repo`. Não publique sob a conta do usuário sem confirmação.
+- **Site publicado neste ambiente**: o proxy público
+  `https://work-1-<...>.prod-runtime.all-hands.dev` (porta 12000) serve o site
+  sem login; `/download` mostra o ZIP do código-fonte com SHA-256 real e
+  `/download/source` entrega o arquivo. O instalador Windows aparece como "não
+  publicado" (honesto — nenhum `.exe` foi compilado no Linux).
+- **Empacotamento**: `python tools/make_source_zip.py` gera
+  `OpenHUD-AI-Complete-<versão>.zip` a partir de `git ls-files` (sem segredos) +
+  `.sha256`. O ZIP é artefato de build e **não** é versionado.
+- **GPU multi-vendor**: `openhud/agent/gpu.py` (NVIDIA/NVML, AMD/Intel via
+  sysfs/CIM/lspci); métricas ao vivo só quando legíveis, nunca inventadas.
+- **Teste no Windows**: `installer/windows-smoke-test.ps1` automatiza o
+  `WINDOWS_TEST.md` e grava `windows-test-report.json`; PowerShell não existe
+  neste ambiente Linux, então o script não pôde ser executado aqui.
