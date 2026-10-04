@@ -95,6 +95,19 @@ def test_release_metadata_computes_real_hash(tmp_path, monkeypatch):
     assert r.size_human.endswith(("B", "KB", "MB"))
 
 
+def test_release_serving_local_implies_published(monkeypatch, tmp_path):
+    from openhud.core import release as rel
+
+    (tmp_path / "OpenHUD-AI-Setup.exe").write_bytes(b"payload")
+    monkeypatch.setenv("OPENHUD_RELEASE_DIR", str(tmp_path))
+    monkeypatch.delenv("OPENHUD_DOWNLOAD_URL", raising=False)
+    monkeypatch.setenv("OPENHUD_SERVE_INSTALLER", "1")
+    r = rel.get_release()
+    assert r.serving is True
+    assert r.published is True
+    assert r.url == "/download/file"
+
+
 def test_release_url_makes_it_published(monkeypatch, tmp_path):
     from openhud.core import release as rel
 

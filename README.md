@@ -21,7 +21,7 @@ O objetivo não é apenas conversar, mas **executar tarefas concretas**.
 | Sem chave | Pollinations (keyless) e Ollama local |
 | Execução | Terminal e Python em sandbox de workspace |
 | Autenticação | Senha (`OPENHUD_PASSWORD`) + cookie de sessão assinado |
-| Testes | pytest — **150 testes, todos passando** |
+| Testes | pytest — **151 testes, todos passando** |
 | Site público | Páginas de marketing servidas pelo mesmo app (sem login) |
 | Distribuição | Instalador Windows (Inno Setup) + GitHub Releases / URL externa |
 
@@ -764,7 +764,7 @@ python tools\make_release.py         :: release.json com tamanho + SHA-256 reais
   conexão, chat, Codex, imagens, vídeo, plugins, inteligência, privacidade,
   admin, com indicador do provedor/modo e logout).
 - `Dockerfile` + `render.yaml`; **build do container validado** neste ambiente.
-- Suíte de **150 testes** automatizados, todos passando.
+- Suíte de **151 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
 - **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas

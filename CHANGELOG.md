@@ -18,7 +18,7 @@ segue [SemVer](https://semver.org/lang/pt-BR/).
   de conexão real, configurações e diagnóstico.
 - Permissão de voz adicionada às permissões do agente.
 - Guias `WINDOWS_TEST.md` e `DEPLOY.md` e licença MIT.
-- 150 testes automatizados passando.
+- 151 testes automatizados passando.
 
 ## 4.0.0
 

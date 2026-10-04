@@ -144,8 +144,10 @@ def get_release() -> Release:
     # not recommended on free PaaS — see DEPLOY.md).
     if os.environ.get("OPENHUD_SERVE_INSTALLER", "").lower() in {"1", "true", "on"} and artifact is not None:
         rel.serving = True
+        rel.published = True
         if not rel.url:
             rel.url = "/download/file"
+        rel.source = "artifact"
 
     rel.notes = changelog_summary()
     return rel

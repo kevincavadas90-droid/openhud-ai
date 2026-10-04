@@ -220,7 +220,7 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **150 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **151 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
   diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
   estratégias, backtest, alertas, paper, permissões, idempotência e as
