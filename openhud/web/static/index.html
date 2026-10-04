@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenHUD</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>OpenHUD</h1>
+        <small>IA multifuncional</small>
+      </div>
+    </div>
+    <button id="new-conv" class="primary">+ Nova conversa</button>
+    <nav class="nav">
+      <button data-view="chat" class="nav-btn active">Chat</button>
+      <button data-view="tools" class="nav-btn">Ferramentas</button>
+      <button data-view="files" class="nav-btn">Arquivos</button>
+      <button data-view="memory" class="nav-btn">Memória</button>
+      <button data-view="tasks" class="nav-btn">Tarefas</button>
+      <button data-view="activity" class="nav-btn">Atividades</button>
+      <button data-view="settings" class="nav-btn">Configurações</button>
+    </nav>
+    <div class="sidebar-section">
+      <label>Projeto</label>
+      <select id="project-select"><option value="">Sem projeto</option></select>
+      <div class="row">
+        <input id="project-name" placeholder="Novo projeto" />
+        <button id="add-project" title="Criar projeto">+</button>
+      </div>
+    </div>
+    <div class="sidebar-section grow">
+      <label>Conversas</label>
+      <ul id="conv-list"></ul>
+    </div>
+    <div class="status" id="status">verificando…</div>
+  </aside>
+
+  <main id="main">
+    <!-- CHAT -->
+    <section class="view active" id="view-chat">
+      <header class="topbar">
+        <div>
+          <h2 id="conv-title">Nova conversa</h2>
+          <small id="model-badge">—</small>
+        </div>
+        <div class="badges">
+          <span id="autonomy-badge" class="badge">supervisionado</span>
+          <button id="toggle-autonomy" class="ghost small">alternar autonomia</button>
+        </div>
+      </header>
+      <div id="messages" class="messages">
+        <div class="empty">
+          <h3>Bem-vindo ao OpenHUD</h3>
+          <p>Peça tarefas concretas: programar, pesquisar, automatizar, analisar dados, criar conteúdo.</p>
+        </div>
+      </div>
+      <form id="composer" class="composer">
+        <textarea id="input" placeholder="Descreva a tarefa… (Enter envia, Shift+Enter quebra linha)" rows="2"></textarea>
+        <button type="submit" id="send" class="primary">Enviar</button>
+      </form>
+    </section>
+
+    <!-- TOOLS -->
+    <section class="view" id="view-tools">
+      <header class="topbar"><h2>Ferramentas</h2><small>Marque as ferramentas habilitadas para o agente</small></header>
+      <div id="tools-list" class="grid"></div>
+    </section>
+
+    <!-- FILES -->
+    <section class="view" id="view-files">
+      <header class="topbar"><h2>Arquivos</h2><small>Workspace do agente</small></header>
+      <div class="files-layout">
+        <div id="files-list" class="file-list"></div>
+        <div class="file-editor">
+          <input id="file-path" placeholder="caminho/arquivo.py" />
+          <textarea id="file-content" placeholder="conteúdo do arquivo…"></textarea>
+          <div class="row">
+            <button id="file-save" class="primary">Salvar</button>
+            <button id="file-load" class="ghost">Abrir</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MEMORY -->
+    <section class="view" id="view-memory">
+      <header class="topbar"><h2>Memória de longo prazo</h2><small>Preferências, decisões e contexto</small></header>
+      <form id="memory-form" class="row">
+        <input id="memory-content" placeholder="Nova memória…" />
+        <input id="memory-tags" placeholder="tags" style="max-width:160px" />
+        <button class="primary">Adicionar</button>
+      </form>
+      <div id="memory-list" class="list"></div>
+    </section>
+
+    <!-- TASKS -->
+    <section class="view" id="view-tasks">
+      <header class="topbar"><h2>Tarefas agendadas</h2><small>Execuções recorrentes em segundo plano</small></header>
+      <form id="task-form" class="row">
+        <input id="task-name" placeholder="Nome da tarefa" style="max-width:220px" />
+        <input id="task-prompt" placeholder="O que o agente deve fazer…" />
+        <input id="task-interval" type="number" min="30" value="3600" title="Intervalo em segundos" style="max-width:150px" />
+        <button class="primary">Agendar</button>
+      </form>
+      <div id="task-list" class="list"></div>
+    </section>
+
+    <!-- ACTIVITY -->
+    <section class="view" id="view-activity">
+      <header class="topbar"><h2>Registro de atividades</h2><small>O que o agente fez</small></header>
+      <div id="activity-list" class="list mono"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <header class="topbar"><h2>Configurações</h2><small>Modelo, provedor, autonomia e chaves</small></header>
+      <div class="settings-grid">
+        <div class="card">
+          <h3>Modelo</h3>
+          <label>Provedor</label>
+          <select id="s-provider"></select>
+          <label>Modelo</label>
+          <input id="s-model" list="model-suggestions" />
+          <datalist id="model-suggestions"></datalist>
+          <label>Base URL</label>
+          <input id="s-base-url" />
+          <div class="row">
+            <div><label>Temperatura</label><input id="s-temp" type="number" step="0.1" min="0" max="2" /></div>
+            <div><label>Max tokens</label><input id="s-maxtokens" type="number" min="256" /></div>
+          </div>
+          <div class="row">
+            <div><label>Máx. etapas do agente</label><input id="s-maxsteps" type="number" min="1" max="100" /></div>
+            <div><label>Autonomia</label>
+              <select id="s-autonomy"><option value="supervised">Supervisionado</option><option value="autonomous">Autônomo</option></select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="s-network" /> Permitir acesso à internet</label>
+          <label class="check"><input type="checkbox" id="s-tools" /> Provedor suporta tool calling</label>
+          <button id="s-save" class="primary">Salvar configurações</button>
+        </div>
+
+        <div class="card">
+          <h3>Chaves de API</h3>
+          <p class="hint">Armazenadas criptografadas (Fernet). Nunca são exibidas por completo.</p>
+          <div class="row">
+            <select id="secret-name">
+              <option value="openai">openai</option>
+              <option value="anthropic">anthropic</option>
+              <option value="groq">groq</option>
+              <option value="deepseek">deepseek</option>
+              <option value="openrouter">openrouter</option>
+              <option value="brave">brave (busca)</option>
+            </select>
+            <input id="secret-value" type="password" placeholder="valor da chave" />
+            <button id="secret-save" class="primary">Salvar</button>
+          </div>
+          <div id="secret-list" class="list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Confirmation modal -->
+<div id="confirm-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3>Confirmar ação</h3>
+    <p>O agente quer executar <b id="confirm-tool"></b>:</p>
+    <pre id="confirm-args" class="mono"></pre>
+    <div class="row right">
+      <button id="confirm-deny" class="ghost">Recusar</button>
+      <button id="confirm-approve" class="primary">Aprovar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
