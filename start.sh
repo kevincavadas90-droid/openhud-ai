@@ -10,7 +10,19 @@
 set -u
 cd "$(dirname "$0")"
 
-export OPENHUD_PASSWORD="${OPENHUD_PASSWORD:-hud-demo-2026}"
+# Never ship a fixed demo password: generate a strong one on first run and keep
+# it in data/.openhud_password (0600). Operators can override with the env var.
+if [ -z "${OPENHUD_PASSWORD:-}" ]; then
+  _pwfile="${OPENHUD_DATA_DIR:-$PWD/data}/.openhud_password"
+  if [ ! -s "$_pwfile" ]; then
+    mkdir -p "$(dirname "$_pwfile")"
+    python3 -c "import secrets,pathlib,os; p=pathlib.Path('$_pwfile'); p.write_text(secrets.token_urlsafe(16)+'\n'); os.chmod(p,0o600)" 2>/dev/null \
+      || { umask 077; printf '%s\n' "$(head -c 24 /dev/urandom | base64 | tr -d '/+=')" > "$_pwfile"; }
+    echo "[start] senha inicial gerada em $_pwfile (altere nas configurações)."
+  fi
+  OPENHUD_PASSWORD="$(sed -n 1p "$_pwfile")"
+  export OPENHUD_PASSWORD
+fi
 export OPENHUD_PORT="${OPENHUD_PORT:-12000}"
 export OPENHUD_HOST="${OPENHUD_HOST:-0.0.0.0}"
 export OPENHUD_DATA_DIR="${OPENHUD_DATA_DIR:-$PWD/data}"

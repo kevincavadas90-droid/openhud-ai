@@ -26,6 +26,7 @@ PRODUCT = "OpenHUD AI"
 PLATFORM = "Windows 10 / 11 (64-bit)"
 ARTIFACT_NAME = "OpenHUD-AI-Setup.exe"
 LEGACY_ARTIFACT_NAMES = ("OpenHUD AI Setup.exe", "openhud-setup.exe")
+SOURCE_ARTIFACT_NAME = f"OpenHUD-AI-Complete-{__version__}.zip"
 
 # Where a real build would land if compiled on Windows and copied into the repo.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -60,6 +61,22 @@ def _first_existing_artifact() -> Path | None:
             candidate = base / name
             if candidate.is_file():
                 return candidate
+    return None
+
+
+def _first_existing_source() -> Path | None:
+    """Locate a real source ZIP, if one was generated (never invented)."""
+    override = os.environ.get("OPENHUD_SOURCE_DIR", "").strip()
+    dirs = (override,) if override else (_REPO_ROOT, *_artifact_dirs())
+    for d in dirs:
+        if not d:
+            continue
+        base = Path(d)
+        if not base.is_dir():
+            continue
+        candidate = base / SOURCE_ARTIFACT_NAME
+        if candidate.is_file():
+            return candidate
     return None
 
 
@@ -100,6 +117,12 @@ class Release:
     published: bool = False
     source: str = "none"  # "url" | "artifact" | "none"
     serving: bool = False
+    source_zip_name: str | None = None
+    source_zip_size: int = 0
+    source_zip_size_human: str = "—"
+    source_zip_sha256: str | None = None
+    source_zip_available: bool = False
+    source_zip_url: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -148,6 +171,26 @@ def get_release() -> Release:
         if not rel.url:
             rel.url = "/download/file"
         rel.source = "artifact"
+
+    # Source ZIP: describe it only when a real file exists (never invented).
+    source_zip = _first_existing_source()
+    if source_zip is not None:
+        rel.source_zip_name = source_zip.name
+        rel.source_zip_available = True
+        try:
+            rel.source_zip_size = source_zip.stat().st_size
+            rel.source_zip_size_human = human_size(rel.source_zip_size)
+            rel.source_zip_sha256 = _sha256(source_zip)
+        except OSError:
+            rel.source_zip_available = False
+    src_url = os.environ.get("OPENHUD_SOURCE_URL", "").strip()
+    if src_url:
+        rel.source_zip_url = src_url
+        rel.source_zip_available = True
+        if not rel.source_zip_name:
+            rel.source_zip_name = src_url.rsplit("/", 1)[-1].split("?")[0] or SOURCE_ARTIFACT_NAME
+    elif source_zip is not None and os.environ.get("OPENHUD_SERVE_SOURCE", "").lower() in {"1", "true", "on"}:
+        rel.source_zip_url = "/download/source"
 
     rel.notes = changelog_summary()
     return rel

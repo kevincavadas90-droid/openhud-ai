@@ -9,6 +9,7 @@ paths; nothing is mocked that we can run for real.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import tempfile
@@ -329,3 +330,54 @@ def test_version_consistency():
     iss = (root / "installer" / "openhud.iss").read_text(encoding="utf-8")
     assert __version__ in iss
     assert rel.get_release().version == __version__
+
+
+# --------------------------------------------------------------------------
+# source ZIP metadata (honest: only when a real file exists)
+# --------------------------------------------------------------------------
+def test_source_zip_absent_is_honest(monkeypatch, tmp_path):
+    from openhud.core import release as rel
+
+    monkeypatch.setenv("OPENHUD_SOURCE_DIR", str(tmp_path))
+    monkeypatch.delenv("OPENHUD_SOURCE_URL", raising=False)
+    monkeypatch.delenv("OPENHUD_SERVE_SOURCE", raising=False)
+    r = rel.get_release()
+    assert r.source_zip_available is False
+    assert r.source_zip_url is None
+
+
+def test_source_zip_detected_with_real_hash(monkeypatch, tmp_path):
+    from openhud.core import release as rel
+
+    name = rel.SOURCE_ARTIFACT_NAME
+    (tmp_path / name).write_bytes(b"source-zip-payload")
+    monkeypatch.setenv("OPENHUD_SOURCE_DIR", str(tmp_path))
+    monkeypatch.delenv("OPENHUD_SOURCE_URL", raising=False)
+    monkeypatch.delenv("OPENHUD_SERVE_SOURCE", raising=False)
+    r = rel.get_release()
+    assert r.source_zip_available is True
+    assert r.source_zip_name == name
+    assert r.source_zip_size == len(b"source-zip-payload")
+    assert r.source_zip_sha256 == hashlib.sha256(b"source-zip-payload").hexdigest()
+
+
+def test_source_zip_served_when_opted_in(monkeypatch, tmp_path):
+    from openhud.core import release as rel
+
+    (tmp_path / rel.SOURCE_ARTIFACT_NAME).write_bytes(b"x")
+    monkeypatch.setenv("OPENHUD_SOURCE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENHUD_SERVE_SOURCE", "1")
+    monkeypatch.delenv("OPENHUD_SOURCE_URL", raising=False)
+    r = rel.get_release()
+    assert r.source_zip_url == "/download/source"
+
+
+def test_source_url_wins(monkeypatch, tmp_path):
+    from openhud.core import release as rel
+
+    monkeypatch.setenv("OPENHUD_SOURCE_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENHUD_SOURCE_URL",
+                       "https://example.test/OpenHUD-AI-Complete-5.0.0.zip")
+    r = rel.get_release()
+    assert r.source_zip_available is True
+    assert r.source_zip_url.endswith(".zip")

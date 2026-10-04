@@ -21,7 +21,7 @@ O objetivo não é apenas conversar, mas **executar tarefas concretas**.
 | Sem chave | Pollinations (keyless) e Ollama local |
 | Execução | Terminal e Python em sandbox de workspace |
 | Autenticação | Senha (`OPENHUD_PASSWORD`) + cookie de sessão assinado |
-| Testes | pytest — **151 testes, todos passando** |
+| Testes | pytest — **174 testes, todos passando** |
 | Site público | Páginas de marketing servidas pelo mesmo app (sem login) |
 | Distribuição | Instalador Windows (Inno Setup) + GitHub Releases / URL externa |
 
@@ -640,6 +640,34 @@ resolve o instalador em três níveis:
 Para servir o arquivo pelo próprio app (VPS), defina
 `OPENHUD_SERVE_INSTALLER=1` (rota `/download/file`).
 
+### Download do código-fonte
+A página `/download` também oferece o **pacote de código-fonte** (ZIP), com
+tamanho e SHA-256 reais — e a mesma honestidade: só aparece quando o arquivo
+existe de fato.
+
+```bash
+python tools/make_source_zip.py     # gera OpenHUD-AI-Complete-<versão>.zip + .sha256
+```
+
+- O ZIP é montado a partir dos arquivos **versionados no Git** (`git ls-files`),
+  então nunca inclui `.env`, bancos locais, `data/`, `__pycache__`, `.venv` nem
+  qualquer arquivo de segredo.
+- Variáveis: `OPENHUD_SOURCE_URL` (link externo, ex.: GitHub Releases),
+  `OPENHUD_SERVE_SOURCE=1` (serve localmente em `/download/source`) e
+  `OPENHUD_SOURCE_DIR` (diretório onde procurar o ZIP).
+
+### GPU multi-vendor
+`openhud/agent/gpu.py` detecta GPU **NVIDIA, AMD e Intel**:
+
+- NVIDIA: métricas ao vivo via NVML (`pynvml`), quando disponível;
+- AMD/Intel: identificação por sysfs (`amdgpu`/`i915`) no Linux, CIM/lspci no
+  Windows;
+- se não houver como ler métricas ao vivo, o agente reporta a GPU
+  identificada **sem inventar** uso/VRAM — e "GPU não detectada" é honesto.
+
+O `selfcheck` e a telemetria usam essa detecção; o instalador inclui
+`pynvml`/`psutil` nos *hidden imports*.
+
 ### Diagnóstico real do agente
 `openhud/agent/selfcheck.py` (ou `openhud-agent.exe --diagnose`) verifica
 Windows, arquitetura, Python, rede/HTTPS, WebSocket, autenticação, permissões,
@@ -764,7 +792,7 @@ python tools\make_release.py         :: release.json com tamanho + SHA-256 reais
   conexão, chat, Codex, imagens, vídeo, plugins, inteligência, privacidade,
   admin, com indicador do provedor/modo e logout).
 - `Dockerfile` + `render.yaml`; **build do container validado** neste ambiente.
-- Suíte de **151 testes** automatizados, todos passando.
+- Suíte de **174 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
 - **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas

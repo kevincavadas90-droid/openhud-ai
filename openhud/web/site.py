@@ -29,7 +29,7 @@ router = APIRouter()
 # Paths that are part of the public marketing site and never require a session.
 PUBLIC_SITE_PATHS = {
     "/", "/features", "/how-it-works", "/pricing", "/help", "/privacy",
-    "/download", "/download/file", "/changelog", "/version",
+    "/download", "/download/file", "/download/source", "/changelog", "/version",
     "/api/site/release", "/api/site/changelog",
     "/static/site/logo.svg", "/static/site/favicon.svg",
 }
@@ -291,6 +291,17 @@ def download_page() -> str:
           <p>1. Baixe o arquivo. 2. Dê duplo clique em <span class="mono">OpenHUD-AI-Setup.exe</span>. 3. Siga o assistente. 4. Na primeira execução, faça o pareamento e escolha as permissões. Opções de atalho e iniciar com o Windows são desmarcadas por padrão.</p>
         </details>
       </div>
+      <div class="dl-card" style="margin-top:22px">
+        <div class="row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:22px">📦</span>
+          <h3 style="margin:0">Código-fonte completo</h3>
+          <span id="src-badge" class="badge warn">verificando…</span>
+        </div>
+        <p style="margin-top:10px">Todo o projeto em Python: servidor, agente Windows, ferramentas, testes e scripts do instalador. Licença MIT.</p>
+        <div class="dl-meta" id="src-meta"></div>
+        <div id="src-action"><button class="btn lg" disabled>Carregando…</button></div>
+        <div id="src-notice"></div>
+      </div>
     </div>
   </section>
 <script>
@@ -331,7 +342,33 @@ async function loadRelease() {
     chlog.innerHTML = c.entries.map(e => `<div style="margin-bottom:10px"><strong>${e.version}</strong> ${e.date ? "· " + e.date : ""}<ul style="padding-left:18px">${e.items.map(i => `<li>${i}</li>`).join("")}</ul></div>`).join("");
   } catch (e) {}
 }
+async function loadSource() {
+  const badge = document.getElementById("src-badge");
+  const meta = document.getElementById("src-meta");
+  const action = document.getElementById("src-action");
+  const notice = document.getElementById("src-notice");
+  try {
+    const d = await fetch("/api/site/release").then(r => r.json());
+    if (d.source_zip_available && d.source_zip_url) {
+      badge.className = "badge ok"; badge.textContent = "disponível";
+      meta.innerHTML = `
+        <div><div class="k">Arquivo</div><div class="v mono">${d.source_zip_name}</div></div>
+        <div><div class="k">Tamanho</div><div class="v">${d.source_zip_size_human || "—"}</div></div>
+        <div><div class="k">SHA-256</div><div class="v mono" style="word-break:break-all">${d.source_zip_sha256 || "—"}</div></div>`;
+      action.innerHTML = `<a class="btn lg" href="${d.source_zip_url}" rel="noopener">BAIXAR CÓDIGO-FONTE (.zip)</a>`;
+    } else {
+      badge.className = "badge warn"; badge.textContent = "não publicado";
+      meta.innerHTML = "";
+      action.innerHTML = `<button class="btn lg" disabled>Indisponível no momento</button>`;
+      notice.innerHTML = `<div class="notice" style="margin-top:16px">O pacote de código-fonte ainda não foi publicado neste servidor. Gere-o com <code>python tools/make_source_zip.py</code> ou defina <code>OPENHUD_SOURCE_URL</code>.</div>`;
+    }
+  } catch (e) {
+    badge.className = "badge err"; badge.textContent = "erro";
+    action.innerHTML = `<button class="btn lg" disabled>Erro ao carregar</button>`;
+  }
+}
 loadRelease();
+loadSource();
 </script>"""
     return _shell("Baixar para Windows", "Baixe o OpenHUD AI para Windows 10/11 (64 bits).", "/download", body)
 
@@ -351,6 +388,20 @@ def download_file():
         raise HTTPException(404, "Instalador ainda não foi gerado.")
     return FileResponse(artifact, filename=artifact.name,
                         media_type="application/octet-stream")
+
+
+@router.get("/download/source")
+def download_source():
+    """Serve the source ZIP when it exists and serving is opted in.
+
+    Honest 404 otherwise — the source bundle is never fabricated.
+    """
+    source = release_mod._first_existing_source()
+    if source is None:
+        raise HTTPException(404, "Pacote de código-fonte ainda não foi gerado.")
+    if os.environ.get("OPENHUD_SERVE_SOURCE", "").lower() not in {"1", "true", "on"}:
+        raise HTTPException(404, "Download do código-fonte local desativado.")
+    return FileResponse(source, filename=source.name, media_type="application/zip")
 
 
 @router.get("/changelog", response_class=HTMLResponse)
