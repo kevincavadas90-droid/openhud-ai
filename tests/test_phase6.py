@@ -322,6 +322,19 @@ def test_icon_asset_exists():
     assert ico.is_file() and ico.stat().st_size > 1000
 
 
+def test_windows_smoke_test_script_present():
+    root = Path(__file__).resolve().parents[1]
+    ps = root / "installer" / "windows-smoke-test.ps1"
+    assert ps.is_file()
+    text = ps.read_text(encoding="utf-8")
+    # Covers the real procedure and stays honest about the environment.
+    for marker in ("selfcheck", "--json", "pytest", "Get-CimInstance Win32_VideoController",
+                   "Run key", "Get-Service", "windows-test-report.json", "iscc"):
+        assert marker in text, marker
+    assert "IsWindows" in text
+    assert "exit 1" in text
+
+
 def test_version_consistency():
     from openhud import __version__
     from openhud.core import release as rel

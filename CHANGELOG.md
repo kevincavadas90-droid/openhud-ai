@@ -18,7 +18,12 @@ segue [SemVer](https://semver.org/lang/pt-BR/).
   de conexão real, configurações e diagnóstico.
 - Permissão de voz adicionada às permissões do agente.
 - Guias `WINDOWS_TEST.md` e `DEPLOY.md` e licença MIT.
-- 151 testes automatizados passando.
+- Pacote de código-fonte (`tools/make_source_zip.py`) e download real do ZIP na
+  página `/download` (tamanho e SHA-256 reais).
+- Detecção de GPU multi-vendor (NVIDIA via NVML; AMD/Intel via sysfs/CIM/lspci).
+- Script de teste real no Windows (`installer/windows-smoke-test.ps1`) que gera
+  relatório com os resultados observados.
+- 175 testes automatizados passando.
 
 ## 4.0.0
 

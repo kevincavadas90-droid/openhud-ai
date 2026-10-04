@@ -9,6 +9,22 @@ passos exatos, o resultado esperado de cada um e o que registrar.
 > Se algo falhar, anote a mensagem de erro exata. O diagnóstico do agente foi
 > feito para nunca inventar um resultado.
 
+## Execução automatizada (recomendado)
+
+Em vez de rodar os passos à mão, use o script que faz tudo e gera um relatório:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\windows-smoke-test.ps1
+# incluir build dos executáveis e do instalador:
+powershell -ExecutionPolicy Bypass -File installer\windows-smoke-test.ps1 -Build -Installer
+```
+
+Ele cobre: info do sistema (OS/CPU/RAM/GPU), ambiente Python + venv, suíte de
+testes, `selfcheck --json`, build dos `.exe` (opcional), compilação do
+instalador (opcional) e auditoria de registro (nenhuma entrada de inicialização
+nem serviço). O resultado fica em `windows-test-report.json`, com os status
+reais — nenhum passo é marcado como aprovado sem observação.
+
 ## 0. Requisitos
 
 - Windows 10 ou 11, 64 bits.
