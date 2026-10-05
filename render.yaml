@@ -42,6 +42,9 @@ services:
       # Real installer link (GitHub Releases or CDN). Leave empty until it exists.
       - key: OPENHUD_DOWNLOAD_URL
         sync: false
+      # Real source-code download (GitHub Release asset), served on /download.
+      - key: OPENHUD_SOURCE_URL
+        value: https://github.com/kevincavadas90-droid/openhud-ai/releases/download/v5.1.1/OpenHUD-AI-Complete-5.1.1.zip
       # Optional donation link shown on /pricing.
       - key: OPENHUD_DONATION_URL
         sync: false

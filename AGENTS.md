@@ -296,10 +296,17 @@ Instalar sem pipe-to-shell: baixar
   `python tools/verify_public_deploy.py --base-url https://... --full` checa
   páginas, endpoints, cabeçalhos e o fluxo real de conta (registrar/login/logout/
   sessão/excluir) sem mocks.
-- `git` remoto: nenhum. O `GITHUB_TOKEN` deste ambiente autentica como o
-  usuário `kevincavadas90-droid`, mas veio **sem escopos** (`x-oauth-scopes`
-  vazio) e com 0 repositórios. Criar repo/push não foi testado — exige token de
-  usuário com escopo `repo`. Não publique sob a conta do usuário sem confirmação.
+- **`git` remoto e publicação (CONCLUÍDO)**: o repositório público
+  <https://github.com/kevincavadas90-droid/openhud-ai> existe e o `master` foi
+  enviado. A tag `v5.1.1` foi enviada e a release
+  <https://github.com/kevincavadas90-droid/openhud-ai/releases/tag/v5.1.1> tem o
+  ativo `OpenHUD-AI-Complete-5.1.1.zip` (440557 bytes, sha256
+  `2f2f07cfc89b72c5cac6da7f69724b6b84678c9fff49f9d490e6375a302dbdc5`). O push
+  foi feito com um PAT de **usuário** (escopo `repo`) fornecido pelo operador,
+  via `gh auth setup-git` (o token **não** entra no `.git/config`, em URLs nem em
+  arquivos do projeto). Esse PAT **não** tem o escopo `workflow`, então arquivos
+  em `.github/workflows/` são recusados pelo GitHub — o CI do Actions precisa de
+  um token com escopo `workflow`. `git remote -v` mostra a URL sem credenciais.
 - **Site publicado neste ambiente**: o proxy público
   `https://work-1-<...>.prod-runtime.all-hands.dev` (porta 12000) serve o site
   sem login; `/download` mostra o ZIP do código-fonte com SHA-256 real e
@@ -315,16 +322,10 @@ Instalar sem pipe-to-shell: baixar
   envia os ativos. `tools/make_source_zip.py` continua disponível isolado. O ZIP
   é artefato de build e **não** é versionado.
   Estado do publish (verificado): a tag `v5.1.1` existe no commit final e o ZIP
-  foi reconstruído a partir dele. O `GITHUB_TOKEN` do ambiente é um token de
-  *integração* (`ghu_`) sem permissão de criar repositórios: `gh repo create`
-  retorna `GraphQL: kevincavadas90-droid does not have the correct permissions to
-  execute CreateRepository` e `POST /user/repos` retorna `403 Resource not
-  accessible by integration` (`x-oauth-scopes` vazio,
-  `allows_permissionless_access=true`); `kevincavadas90-droid/openhud-ai` dá
-  `404`. Logo o push/release exige um token de usuário com escopo `repo` (ou
-  criar o repo em github.com/new e rodar `publish_release.py` de novo). Sem
-  credencial de Render/Neon, o deploy real também é do operador. Tudo isso é
-  honesto: nada foi fabricado.
+  foi reconstruído a partir dele. Publicação no GitHub **feita** (ver acima) com
+  um PAT de usuário escopo `repo`; o PAT **não** tem escopo `workflow`. Sem
+  credencial de Render/Neon, o deploy real de hospedagem continua sendo do
+  operador. Tudo isso é honesto: nada foi fabricado.
 - **Kit de hospedagem permanente**: `Dockerfile` (python:3.13-slim, não-root,
   healthcheck), `.dockerignore`, `fly.toml` (volume `/data`), `render.yaml`
   (free + Postgres externo + `OPENHUD_ENCRYPTION_KEY`), `railway.json`,
