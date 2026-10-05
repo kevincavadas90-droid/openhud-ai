@@ -307,6 +307,13 @@ Instalar sem pipe-to-shell: baixar
   empacota, cria o repo (se o token permitir), faz push, cria a tag/release e
   envia os ativos. `tools/make_source_zip.py` continua disponível isolado. O ZIP
   é artefato de build e **não** é versionado.
+  Estado do publish (verificado): a tag `v5.1.0` existe no commit final e o ZIP
+  foi reconstruído a partir dele. O `GITHUB_TOKEN` do ambiente é um token de
+  *integração* sem permissão de criar repositórios (`403 Resource not accessible
+  by integration`) e sem acesso a nenhum repo — logo o push/release exige um
+  token de usuário com escopo `repo` (ou criar o repo em github.com/new e rodar
+  `publish_release.py` de novo). Sem credencial de Render/Neon, o deploy real
+  também é do operador. Tudo isso é honesto: nada foi fabricado.
 - **Kit de hospedagem permanente**: `Dockerfile` (python:3.13-slim, não-root,
   healthcheck), `.dockerignore`, `fly.toml` (volume `/data`), `render.yaml`
   (free + Postgres externo + `OPENHUD_ENCRYPTION_KEY`), `railway.json`,
