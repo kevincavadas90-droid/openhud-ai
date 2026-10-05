@@ -4,7 +4,13 @@
   const nav = document.getElementById("nav");
   const toggle = document.getElementById("nav-toggle");
   if (toggle && nav) {
-    toggle.addEventListener("click", () => nav.classList.toggle("open"));
+    const header = nav.closest("header.site");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.addEventListener("click", () => {
+      const open = nav.classList.toggle("open");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      if (header) header.classList.toggle("menu-open", open);
+    });
   }
   // Version in the footer (single source: /version).
   fetch("/version")

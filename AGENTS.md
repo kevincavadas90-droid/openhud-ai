@@ -337,6 +337,17 @@ Instalar sem pipe-to-shell: baixar
   HSTS, CORS não-wildcard, ciclo de conta completo e persistência através de
   restart (login → restart → login). O plano free hiberna por inatividade; a
   primeira requisição pode levar ~30-60s (cold start).
+- **Auditoria visual do site público**: corrigido no CSS/HTML gerado — (1) menu
+  mobile não transborda mais (antes `.nav-actions` ficava visível no header
+  colapsado e estourava a viewport em 19px; agora `.nav-links` e `.nav-actions`
+  são ocultados e caem num painel fluido com `flex-wrap`, sem `position:absolute`);
+  (2) cada página de conteúdo tem exatamente um `<h1>` (títulos passaram de
+  `<h2>` para `<h1>` com `.section-head h1`), corrigindo hierarquia/SEO;
+  (3) `/sitemap.xml` não lista mais `/login` e `/register` (que são `noindex` e
+  bloqueados no `robots.txt`). Verificado com Chromium headless (Playwright) em
+  desktop 1280px e mobile 390px: sem overflow, sem erros de console, 17 links
+  internos OK, fluxo de conta (registro/validação/login/logout/recuperação/
+  exclusão) aprovado com mensagens claras.
 - **Kit de hospedagem permanente**: `Dockerfile` (python:3.13-slim, não-root,
   healthcheck), `.dockerignore`, `fly.toml` (volume `/data`), `render.yaml`
   (free + Postgres externo + `OPENHUD_ENCRYPTION_KEY`), `railway.json`,

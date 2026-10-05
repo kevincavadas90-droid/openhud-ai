@@ -150,7 +150,7 @@ def features(request: Request) -> str:
     body = f"""
   <section class="block" style="border-top:none">
     <div class="wrap">
-      <div class="section-head"><h2>Recursos</h2><p>O que o OpenHUD AI faz de verdade — sem promessas que não podemos cumprir.</p></div>
+      <div class="section-head"><h1>Recursos</h1><p>O que o OpenHUD AI faz de verdade — sem promessas que não podemos cumprir.</p></div>
       <div class="grid c3">{items}</div>
     </div>
   </section>
@@ -185,7 +185,7 @@ def how_it_works(request: Request) -> str:
     body = f"""
   <section class="block" style="border-top:none">
     <div class="wrap">
-      <div class="section-head"><h2>Como funciona</h2><p>Do site ao aplicativo no Windows, em seis passos.</p></div>
+      <div class="section-head"><h1>Como funciona</h1><p>Do site ao aplicativo no Windows, em seis passos.</p></div>
       <div class="grid c2" style="align-items:start;gap:40px">
         <div class="steps">{items}</div>
         <div>
@@ -215,7 +215,7 @@ def pricing(request: Request) -> str:
     <div class="wrap">
       <div class="section-head">
         <div class="kicker">Planos</div>
-        <h2>Planos</h2>
+        <h1>Planos</h1>
         <p>Os planos comerciais do OpenHUD AI estão em desenvolvimento.</p>
       </div>
       <div class="grid c2">
@@ -281,7 +281,7 @@ def help_page(request: Request) -> str:
     body = f"""
   <section class="block" style="border-top:none">
     <div class="wrap">
-      <div class="section-head"><h2>Ajuda</h2><p>Perguntas frequentes e o manual de instalação.</p></div>
+      <div class="section-head"><h1>Ajuda</h1><p>Perguntas frequentes e o manual de instalação.</p></div>
       <div class="faq">{items}</div>
     </div>
   </section>
@@ -304,7 +304,7 @@ def privacy_page(request: Request) -> str:
     body = """
   <section class="block" style="border-top:none">
     <div class="wrap">
-      <div class="section-head"><h2>Privacidade</h2><p>Resumo direto do que o OpenHUD AI faz e não faz com os seus dados.</p></div>
+      <div class="section-head"><h1>Privacidade</h1><p>Resumo direto do que o OpenHUD AI faz e não faz com os seus dados.</p></div>
       <div class="grid c2">
         <div class="card"><h3>Coletamos o mínimo</h3><p>Não usamos rastreadores de terceiros, pixels de anúncio nem analytics invasivos. O site não coleta dados sem a sua ação.</p></div>
         <div class="card"><h3>Senhas protegidas</h3><p>Senhas são guardadas apenas como hash PBKDF2-SHA256 com sal próprio. Nunca armazenamos senha em texto puro e nunca colocamos credenciais no frontend.</p></div>
@@ -324,12 +324,12 @@ def download_page(request: Request) -> str:
   <section class="block" style="border-top:none">
     <div class="wrap">
       <div class="section-head">
-        <h2>Baixar OpenHUD AI</h2>
+        <h1>Baixar OpenHUD AI</h1>
         <p>Aplicativo para Windows 10/11 (64 bits) com desinstalador. Confira versão, tamanho e SHA-256 reais abaixo.</p>
       </div>
       <div class="dl-card">
         <div class="dl-head">
-          <h3 style="margin:0">OpenHUD AI para Windows</h3>
+          <h2 style="margin:0;font-size:19px">OpenHUD AI para Windows</h2>
           <span id="dl-badge" class="badge warn">verificando…</span>
         </div>
         <p id="dl-desc" style="margin-top:10px">Instalador oficial (Inno Setup) · atalhos e início automático opcionais.</p>
@@ -345,7 +345,7 @@ def download_page(request: Request) -> str:
       </div>
       <div class="dl-card" style="margin-top:22px">
         <div class="dl-head">
-          <h3 style="margin:0">Código-fonte completo</h3>
+          <h2 style="margin:0;font-size:19px">Código-fonte completo</h2>
           <span id="src-badge" class="badge warn">verificando…</span>
         </div>
         <p style="margin-top:10px">Todo o projeto em Python: servidor, agente Windows, ferramentas, testes e scripts do instalador. Licença MIT.</p>
@@ -459,9 +459,9 @@ def download_source():
 def changelog_page(request: Request) -> str:
     entries = release_mod.changelog()
     blocks = "".join(
-        f'<div class="card" style="margin-bottom:14px"><h3>{e["version"]}'
+        f'<div class="card" style="margin-bottom:14px"><h2 style="font-size:17px">{e["version"]}'
         + (f' <span class="badge">{e["date"]}</span>' if e.get("date") else "")
-        + '</h3><ul style="padding-left:18px;color:var(--muted);margin:0">'
+        + '</h2><ul style="padding-left:18px;color:var(--muted);margin:0">'
         + "".join(f"<li>{i}</li>" for i in e["items"])
         + "</ul></div>"
         for e in entries
@@ -469,7 +469,7 @@ def changelog_page(request: Request) -> str:
     body = f"""
   <section class="block" style="border-top:none">
     <div class="wrap">
-      <div class="section-head"><h2>Changelog</h2><p>Histórico de versões do OpenHUD AI.</p></div>
+      <div class="section-head"><h1>Changelog</h1><p>Histórico de versões do OpenHUD AI.</p></div>
       {blocks}
     </div>
   </section>"""
@@ -480,8 +480,9 @@ def changelog_page(request: Request) -> str:
 @router.get("/sitemap.xml")
 def sitemap() -> PlainTextResponse:
     base = os.environ.get("OPENHUD_PUBLIC_URL", "").rstrip("/")
+    # Only indexable pages: auth pages are noindex and disallowed in robots.txt.
     paths = ["/", "/features", "/how-it-works", "/download", "/pricing", "/help",
-             "/privacy", "/changelog", "/register", "/login"]
+             "/privacy", "/changelog"]
     urls = "".join(
         f"<url><loc>{base}{p}</loc><changefreq>weekly</changefreq></url>" if base
         else f"<url><loc>{p}</loc></url>"
