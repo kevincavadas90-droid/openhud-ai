@@ -2,8 +2,8 @@
 
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-228%20passing-brightgreen.svg)](#8-testes)
-[![Version](https://img.shields.io/badge/version-5.1.0-informational.svg)](#1-diagnóstico-do-ambiente-estado-atual)
+[![Tests](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)](#8-testes)
+[![Version](https://img.shields.io/badge/version-5.1.1-informational.svg)](#1-diagnóstico-do-ambiente-estado-atual)
 
 OpenHUD AI é uma inteligência artificial pessoal **multifuncional, extensível e
 configurável**. Ela combina um agente de execução com ferramentas reais
@@ -51,7 +51,7 @@ Para hospedar na nuvem, veja **[DEPLOY.md](DEPLOY.md)**.
 | Sem chave | Pollinations (keyless) e Ollama local |
 | Execução | Terminal e Python em sandbox de workspace |
 | Autenticação | Contas de usuário (e-mail/senha) **ou** senha de operador (`OPENHUD_PASSWORD`) |
-| Testes | pytest — **228 testes, todos passando** |
+| Testes | pytest — **230 testes, todos passando** |
 | Site público | Páginas de marketing + cadastro/login servidas pelo mesmo app |
 | Distribuição | Instalador Windows (Inno Setup) + GitHub Releases / URL externa |
 
@@ -882,7 +882,7 @@ O OpenHUD deixou de ser uma ferramenta de senha única e passou a ser um
   conexão, chat, Codex, imagens, vídeo, plugins, inteligência, privacidade,
   admin, com indicador do provedor/modo e logout).
 - `Dockerfile` + `render.yaml`; **build do container validado** neste ambiente.
-- Suíte de **228 testes** automatizados, todos passando.
+- Suíte de **230 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
 - **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas

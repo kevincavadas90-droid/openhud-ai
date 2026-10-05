@@ -4,8 +4,14 @@ Todas as mudanças relevantes do OpenHUD AI. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento
 segue [SemVer](https://semver.org/lang/pt-BR/).
 
-## Unreleased
+## 5.1.1 (2026-10-04)
 
+- **Cabeçalhos de segurança** em todas as respostas: `Content-Security-Policy`
+  (mesma origem + fontes do Google usadas pelo site), `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` e
+  `Strict-Transport-Security` quando servido por HTTPS.
+- **Verificador de deploy público** (`tools/verify_public_deploy.py`): checa
+  páginas, endpoints, cabeçalhos e o fluxo real de conta contra uma URL pública.
 - **Hospedagem pública permanente**: plataforma definida (Render free + Postgres
   no Neon) e documentada em `DEPLOY.md`; alternativas (Fly/Railway/VPS) no
   Apêndice A. `railway.json` corrigido para JSON válido.
@@ -16,7 +22,7 @@ segue [SemVer](https://semver.org/lang/pt-BR/).
   `/api/secrets` informa o problema em vez de retornar HTTP 500, e
   `/api/health`, diagnóstico e busca continuam funcionando.
 - **README** com badges, recursos e início rápido; contagem de testes atualizada.
-- Testes: **228** automatizados, todos passando.
+- Testes: **230** automatizados, todos passando.
 
 ## 5.1.0 (2026-10-04)
 

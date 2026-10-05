@@ -54,7 +54,7 @@ def test_site_is_public_but_app_is_protected():
 def test_version_and_release_api():
     v = client.get("/version").json()
     assert v["app"] == "openhud"
-    assert v["version"] == "5.1.0"
+    assert v["version"] == "5.1.1"
     assert "download" in v
     rel = client.get("/api/site/release").json()
     assert rel["filename"] == "OpenHUD-AI-Setup.exe"
@@ -87,6 +87,22 @@ def test_site_assets_exist():
     for path in ("/static/site/site.css", "/static/site/logo.svg",
                  "/static/site/favicon.svg", "/static/site/app-icon.png"):
         assert client.get(path).status_code == 200, path
+
+
+def test_security_headers_present_on_public_pages():
+    r = client.get("/")
+    assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("x-frame-options") == "DENY"
+    assert r.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+    assert "content-security-policy" in r.headers
+    assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    # HSTS only over HTTPS (honest: never advertised on plain HTTP).
+    assert "strict-transport-security" not in r.headers
+
+
+def test_hsts_set_behind_https_proxy():
+    r = client.get("/health", headers={"x-forwarded-proto": "https"})
+    assert "max-age=31536000" in r.headers.get("strict-transport-security", "")
 
 
 # --------------------------------------------------------------------------

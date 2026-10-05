@@ -51,7 +51,7 @@ async def lifespan(_: FastAPI):
     runtime.job_queue.stop()
 
 
-app = FastAPI(title="OpenHUD AI", version="5.1.0", lifespan=lifespan)
+app = FastAPI(title="OpenHUD AI", version="5.1.1", lifespan=lifespan)
 
 # CORS is opt-in and never wildcard-by-default: the browser UI is same-origin,
 # so CORS only matters for a separately hosted front-end or the desktop client.
@@ -106,6 +106,35 @@ async def require_auth(request: Request, call_next):
         return JSONResponse({"detail": "Não autenticado"}, status_code=401)
     # Browser navigation to a protected page -> send to login.
     return RedirectResponse("/login", status_code=302)
+
+
+# Security headers applied to every response. The CSP allows inline scripts and
+# styles because the no-build SPA and account pages embed them, and permits the
+# Google Fonts hosts used by the marketing site; everything else is same-origin.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' data: blob:; "
+    "connect-src 'self' ws: wss:; "
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=(self)")
+    response.headers.setdefault("Content-Security-Policy", _CSP)
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if proto.split(",")[0].strip() == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
 
 MODEL_SUGGESTIONS: dict[str, list[str]] = {
     "pollinations": ["openai", "openai-fast"],

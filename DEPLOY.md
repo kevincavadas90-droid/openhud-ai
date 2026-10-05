@@ -156,7 +156,7 @@ Domínio próprio: **Settings → Custom Domain** no Render e aponte o CNAME.
 ### 7.1 Com um comando (recomendado)
 
 O repositório traz um publicador que faz tudo: empacota o código-fonte, cria o
-repositório (se o token permitir), faz push, cria a tag `v5.1.0`, abre a release
+repositório (se o token permitir), faz push, cria a tag `v5.1.1`, abre a release
 e envia os ativos (`.zip` do código e, se existir, o instalador `.exe`):
 
 ```bash
@@ -187,7 +187,7 @@ git push -u origin master
 gh repo create SEU-USUARIO/openhud --private --source=. --push   # alternativa
 ```
 
-Depois, anexe `dist/OpenHUD-AI-Complete-5.1.0.zip` (e o `.exe`, se houver) a uma
+Depois, anexe `dist/OpenHUD-AI-Complete-5.1.1.zip` (e o `.exe`, se houver) a uma
 Release, e aponte Render/Railway/Fly para esse repositório.
 
 ---

@@ -265,7 +265,7 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **228 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **230 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
   diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
   estratégias, backtest, alertas, paper, permissões, idempotência e as
@@ -289,6 +289,13 @@ Instalar sem pipe-to-shell: baixar
   compartilhado estoura o limite e vira 401/429).
 - Deploy validado: `docker build` + container respondendo `/api/health`.
   Conexão do agente por **wss** (URL pública HTTPS) testada com pareamento.
+- **Cabeçalhos de segurança** (v5.1.1): middleware aplica CSP (mesma origem +
+  fontes do Google do site), `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy` e `Strict-Transport-Security` (só
+  quando `x-forwarded-proto` é https). Verificação de deploy público:
+  `python tools/verify_public_deploy.py --base-url https://... --full` checa
+  páginas, endpoints, cabeçalhos e o fluxo real de conta (registrar/login/logout/
+  sessão/excluir) sem mocks.
 - `git` remoto: nenhum. O `GITHUB_TOKEN` deste ambiente autentica como o
   usuário `kevincavadas90-droid`, mas veio **sem escopos** (`x-oauth-scopes`
   vazio) e com 0 repositórios. Criar repo/push não foi testado — exige token de
@@ -307,7 +314,7 @@ Instalar sem pipe-to-shell: baixar
   empacota, cria o repo (se o token permitir), faz push, cria a tag/release e
   envia os ativos. `tools/make_source_zip.py` continua disponível isolado. O ZIP
   é artefato de build e **não** é versionado.
-  Estado do publish (verificado): a tag `v5.1.0` existe no commit final e o ZIP
+  Estado do publish (verificado): a tag `v5.1.1` existe no commit final e o ZIP
   foi reconstruído a partir dele. O `GITHUB_TOKEN` do ambiente é um token de
   *integração* sem permissão de criar repositórios (`403 Resource not accessible
   by integration`) e sem acesso a nenhum repo — logo o push/release exige um
