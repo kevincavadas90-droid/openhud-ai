@@ -75,6 +75,9 @@ def page_shell(title: str, description: str, active: str, body: str,
 {og_tags}
 <link rel="icon" href="/static/site/favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/static/site/app-icon-256.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" />
 <link rel="stylesheet" href="/static/site/site.css?v=5.1.0" />
 </head>
 <body class="{body_class}">
@@ -98,7 +101,7 @@ def page_shell(title: str, description: str, active: str, body: str,
       </div>
       <div><h4>Produto</h4><a href="/features">Recursos</a><a href="/how-it-works">Como funciona</a><a href="/download">Download</a><a href="/pricing">Preços</a></div>
       <div><h4>Suporte</h4><a href="/help">Ajuda</a><a href="/download">Manual de instalação</a><a href="/changelog">Changelog</a><a href="/version">Versão</a></div>
-      <div><h4>Conta</h4><a href="/login">Entrar</a><a href="/register">Criar conta</a><a href="/privacy">Privacidade</a><a href="/health">Status</a></div>
+      <div><h4>Projeto</h4><a href="/login">Entrar</a><a href="/register">Criar conta</a><a href="/privacy">Privacidade</a><a href="/pricing">Apoiar o projeto</a></div>
     </div>
     <p class="fine">OpenHUD AI · versão <span id="foot-version">{__version__}</span> · Windows 10/11 (64 bits). Este site não coleta dados sem a sua ação.</p>
   </div>

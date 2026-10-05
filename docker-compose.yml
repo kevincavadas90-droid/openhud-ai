@@ -11,7 +11,7 @@
 services:
   openhud:
     build: .
-    image: openhud:5.0.0
+    image: openhud:5.1.0
     restart: unless-stopped
     ports:
       - "8000:8000"

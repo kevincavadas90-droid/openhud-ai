@@ -293,9 +293,20 @@ Instalar sem pipe-to-shell: baixar
   código novo, reinicie com `nohup bash run_public_demo.sh &` (o script lê a
   senha de `data/.demo_login`, nunca impressa). O cadastro/login de contas
   (`/register`, `/login`, `/account`) também está no ar.
-- **Empacotamento**: `python tools/make_source_zip.py` gera
-  `OpenHUD-AI-Complete-<versão>.zip` a partir de `git ls-files` (sem segredos) +
-  `.sha256`. O ZIP é artefato de build e **não** é versionado.
+- **Empacotamento**: `python tools/prepare_release.py` gera o ZIP do código-fonte
+  **e** o `dist/release-manifest.json` com tamanhos/SHA-256 reais; não inventa um
+  instalador ausente. `python tools/publish_release.py --repo owner/name`
+  empacota, cria o repo (se o token permitir), faz push, cria a tag/release e
+  envia os ativos. `tools/make_source_zip.py` continua disponível isolado. O ZIP
+  é artefato de build e **não** é versionado.
+- **Kit de hospedagem permanente**: `Dockerfile` (python:3.13-slim, não-root,
+  healthcheck), `.dockerignore`, `fly.toml` (volume `/data`), `render.yaml`
+  (free + Postgres externo), `railway.json`, `docker-compose.yml` e `.env.example`.
+  Endpoints públicos de plataforma: `/health` (liveness), `/ready` (checa o
+  banco), `/version`. CORS é opt-in via `OPENHUD_CORS_ORIGINS` (nunca wildcard;
+  lido em `openhud/config.py` como `settings.cors_origins`). Testes em
+  `tests/test_deploy.py` cobrem CORS (subprocesso), o manifesto e os arquivos do
+  kit.
 - **GPU multi-vendor**: `openhud/agent/gpu.py` (NVIDIA/NVML, AMD/Intel via
   sysfs/CIM/lspci); métricas ao vivo só quando legíveis, nunca inventadas.
 - **Teste no Windows**: `installer/windows-smoke-test.ps1` automatiza o

@@ -205,15 +205,19 @@ def pricing(request: Request) -> str:
     if donation:
         donate_action = (f'<a class="btn lg" href="{donation}" target="_blank" rel="noopener noreferrer">'
                          f'APOIAR O PROJETO</a>')
-        donate_note = "Obrigado! Cada contribuição ajuda a manter os servidores e o desenvolvimento."
+        donate_note = "Obrigado! Cada contribuição ajuda a manter a infraestrutura e o desenvolvimento."
     else:
         donate_action = '<button class="btn lg" disabled title="Configure OPENHUD_DONATION_URL">APOIAR O PROJETO</button>'
-        donate_note = ("O link de doação ainda não foi configurado. Defina a variável de ambiente "
-                       "<code>OPENHUD_DONATION_URL</code> para ativar este botão — não inventamos um endereço de pagamento.")
+        donate_note = ("O botão será ativado assim que o endereço de doação for configurado "
+                       "(variável <code>OPENHUD_DONATION_URL</code>). Não inventamos um endereço de pagamento.")
     body = f"""
   <section class="block" style="border-top:none">
     <div class="wrap">
-      <div class="section-head"><h2>Planos</h2><p>Os planos comerciais do OpenHUD AI estão em desenvolvimento.</p></div>
+      <div class="section-head">
+        <div class="kicker">Planos</div>
+        <h2>Planos</h2>
+        <p>Os planos comerciais do OpenHUD AI estão em desenvolvimento.</p>
+      </div>
       <div class="grid c2">
         <div class="card price-card featured">
           <span class="tag">Disponível agora</span>
@@ -230,10 +234,10 @@ def pricing(request: Request) -> str:
           <a class="btn lg" href="/download">Baixar OpenHUD AI</a>
         </div>
         <div class="card price-card">
-          <span class="tag">Em estruturação</span>
+          <span class="tag">Em desenvolvimento</span>
           <h3>Planos comerciais</h3>
           <div class="amount">—</div>
-          <p>Os recursos pagos ainda estão sendo estruturados. Quando existirem, serão anunciados aqui com transparência, preços claros e sem letras miúdas.</p>
+          <p>O projeto ainda está em desenvolvimento. Os planos pagos serão anunciados aqui com transparência, preços claros e sem letras miúdas.</p>
           <ul>
             <li>Sem cobranças hoje</li>
             <li>Nada é bloqueado por pagamento</li>
@@ -243,19 +247,20 @@ def pricing(request: Request) -> str:
       </div>
     </div>
   </section>
+
   <section class="block">
     <div class="wrap">
-      <div class="donate">
-        <div>
-          <h3>Ajude a manter o projeto</h3>
-          <p>Doações ajudam a pagar servidores e infraestrutura, e a financiar novos recursos. {donate_note}</p>
-        </div>
-        <div>{donate_action}</div>
+      <div class="support">
+        <div class="kicker">Apoie o desenvolvimento</div>
+        <h3>APOIE O DESENVOLVIMENTO</h3>
+        <p>O OpenHUD AI está sendo desenvolvido continuamente. Sua contribuição ajuda a manter a infraestrutura, servidores e o desenvolvimento de novos recursos.</p>
+        <div class="actions">{donate_action}</div>
+        <p class="fine" style="margin-top:16px">{donate_note}</p>
       </div>
-      <p class="muted" style="margin-top:18px;font-size:14px">Não prometemos que o OpenHUD AI será gratuito para sempre — mas, enquanto for, avisaremos antes de qualquer mudança.</p>
+      <p class="muted" style="margin-top:18px;font-size:13.5px">Não prometemos que o OpenHUD AI será gratuito para sempre — mas, enquanto for, avisaremos antes de qualquer mudança.</p>
     </div>
   </section>"""
-    return _shell(request, "Preços", "Planos do OpenHUD AI em desenvolvimento. Gratuito durante o desenvolvimento; apoie o projeto.",
+    return _shell(request, "Planos", "Planos do OpenHUD AI em desenvolvimento. Gratuito durante o desenvolvimento; apoie o projeto.",
                   "/pricing", body, canonical="/pricing")
 
 

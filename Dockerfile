@@ -3,7 +3,9 @@ FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     OPENHUD_HOST=0.0.0.0 \
+    OPENHUD_PORT=8000 \
     OPENHUD_DATA_DIR=/data
 
 WORKDIR /app
@@ -16,7 +18,12 @@ COPY openhud ./openhud
 COPY README.md ./
 
 # Persistent state (SQLite DB, encrypted keys, workspace, backups) lives in /data.
-RUN mkdir -p /data
+# Owned by an unprivileged user; the app never needs root at runtime.
+RUN useradd --create-home --uid 10001 openhud \
+    && mkdir -p /data \
+    && chown -R openhud:openhud /data /app
+USER openhud
+
 VOLUME ["/data"]
 
 EXPOSE 8000

@@ -12,12 +12,15 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" href="/static/site/favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/static/site/app-icon-256.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" />
 <link rel="stylesheet" href="/static/site/site.css?v=5.1.0" />
 </head>
 <body>
 <header class="site">
   <div class="wrap nav" id="nav">
-    <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="26" height="26" /> OpenHUD AI</a>
+    <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="25" height="25" /> OpenHUD AI</a>
     <button class="btn ghost nav-toggle" id="nav-toggle" aria-label="Abrir menu">Menu</button>
     <nav class="nav-links">
       <a href="/" class="active">Início</a>
@@ -35,27 +38,31 @@
 </header>
 
 <main>
+  <!-- 1. O QUE É / POR QUE USAR -->
   <section class="hero">
     <div class="wrap hero-grid">
-      <div>
-        <span class="pill"><span class="dot"></span> Assistente de PC + IA por voz</span>
-        <h1>Seu computador, com um assistente que realmente ajuda.</h1>
-        <p class="lead">O OpenHUD AI monitora o desempenho da sua máquina, responde por texto ou voz e — quando você autorizar — executa tarefas: abre programas, encontra elementos na tela, organiza arquivos e automatiza o que for repetitivo. Sempre com permissões claras.</p>
+      <div class="reveal">
+        <span class="eyebrow"><span class="dot"></span> Assistente de PC + IA por voz · Windows</span>
+        <h1>O assistente que entende o seu computador.</h1>
+        <p class="lead">O OpenHUD AI lê o desempenho real da sua máquina, responde por texto ou voz e — quando você autorizar — executa a tarefa: abre programas, encontra elementos na tela, organiza arquivos e automatiza o repetitivo. Com permissões claras e reversíveis.</p>
         <div class="cta">
-          <a class="btn lg" href="/download">Baixar OpenHUD AI</a>
-          <a class="btn ghost lg" href="/register">Criar conta</a>
+          <a class="btn lg" href="/register">Criar conta</a>
+          <a class="btn subtle lg" href="/download">Baixar OpenHUD AI</a>
+          <a class="btn ghost lg" href="/login">Entrar</a>
         </div>
         <div class="trust">
-          <span>Windows 10/11 (64 bits)</span>
-          <span>Permissões desligadas por padrão</span>
-          <span>Grátis durante o desenvolvimento</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Windows 10/11 (64 bits)</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Permissões desligadas por padrão</span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Grátis durante o desenvolvimento</span>
         </div>
       </div>
-      <div class="shot" aria-hidden="true">
+
+      <!-- Product mock (schematic — not a screenshot) -->
+      <div class="shot reveal d1" role="img" aria-label="Representação da interface do OpenHUD AI com métricas do PC e uma conversa">
         <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">OpenHUD AI</span></div>
         <div class="body">
           <div class="side">
-            <i class="on"></i><i></i><i></i><i></i><i></i><i></i>
+            <i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i>
           </div>
           <div class="panel">
             <div class="tiles">
@@ -63,57 +70,75 @@
               <div class="tile"><b>62%</b><span>RAM</span></div>
               <div class="tile"><b>48%</b><span>GPU</span></div>
             </div>
-            <div class="bubble">Meu jogo está travando. Pode analisar?</div>
-            <div class="bubble ai">Analisei o uso em tempo real. A RAM está em 92% com o navegador aberto em segundo plano. Quer que eu liste os processos que mais consomem?</div>
+            <div class="bubble me">Meu jogo está travando. Pode analisar?</div>
+            <div class="bubble ai">Analisei o uso em tempo real: a RAM está em 92% com o navegador em segundo plano. Quer que eu liste os processos que mais consomem?</div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- 2. RECURSOS -->
   <section class="block" id="recursos">
     <div class="wrap">
       <div class="section-head">
-        <h2>O que o OpenHUD AI faz</h2>
-        <p>Um assistente multifuncional que conversa, monitora e executa tarefas reais — sem promessas que não podemos cumprir.</p>
+        <div class="kicker">Recursos</div>
+        <h2>Um assistente que faz, não só conversa</h2>
+        <p>Monitoramento, diagnóstico, automação, voz e segurança — no mesmo lugar, com dados observados e sem promessas que não podemos cumprir.</p>
       </div>
       <div class="grid c3">
-        <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><h3>Monitoramento do PC</h3><p>CPU, GPU, RAM, disco e rede em tempo real, com histórico e alertas baseados em dados observados.</p></div>
-        <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0-8-8"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1.5"/></svg></span><h3>Otimização e diagnóstico</h3><p>Identifica gargalos e recomenda ajustes com base no hardware e no uso reais. Nunca inventa um resultado.</p></div>
-        <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg></span><h3>Jogos</h3><p>Detecta jogos instalados, sugere perfil por jogo e lê o FPS quando o jogo está aberto.</p></div>
-        <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg></span><h3>Automações</h3><p>Tarefas agendadas, scripts e comandos autorizados — com bloqueio de padrões destrutivos.</p></div>
-        <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><h3>Segurança e permissões</h3><p>Tela, controle e voz desligados por padrão. Ações sensíveis sempre pedem confirmação explícita.</p></div>
-        <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg></span><h3>Voz e conversa</h3><p>Converse por voz com transcrição no navegador e respostas faladas, em vários idiomas.</p></div>
+        <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><h3>Monitoramento do PC</h3><p>CPU, GPU, RAM, disco e rede em tempo real, com histórico e alertas baseados em dados observados.</p></div>
+        <div class="card reveal d1"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0-8-8"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1.5"/></svg></span><h3>Diagnóstico e otimização</h3><p>Identifica gargalos e recomenda ajustes com base no hardware e no uso reais. Nunca inventa um resultado.</p></div>
+        <div class="card reveal d2"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg></span><h3>Jogos</h3><p>Detecta jogos instalados, sugere um perfil por jogo e lê o FPS quando o jogo está aberto.</p></div>
+        <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg></span><h3>Automações</h3><p>Tarefas agendadas, scripts e comandos autorizados — com bloqueio de padrões destrutivos.</p></div>
+        <div class="card reveal d1"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg></span><h3>Voz e conversa</h3><p>Converse por voz com transcrição no navegador e respostas faladas, em vários idiomas.</p></div>
+        <div class="card reveal d2"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><h3>Segurança e permissões</h3><p>Tela, controle e voz desligados por padrão. Ações sensíveis sempre pedem confirmação explícita.</p></div>
       </div>
-      <div style="margin-top:22px"><a class="btn ghost" href="/features">Ver todos os recursos</a></div>
+      <div style="margin-top:26px"><a class="btn subtle" href="/features">Ver todos os recursos</a></div>
     </div>
   </section>
 
+  <!-- 3. COMO FUNCIONA -->
   <section class="block" id="como-funciona">
     <div class="wrap">
       <div class="section-head">
-        <h2>Como funciona</h2>
-        <p>Do cadastro ao assistente em execução, em poucos passos.</p>
+        <div class="kicker">Como funciona</div>
+        <h2>Do cadastro ao assistente em execução</h2>
+        <p>Quatro passos, sem burocracia. O aplicativo abre uma conexão de saída — o seu PC nunca fica exposto à internet.</p>
       </div>
-      <div class="steps">
-        <div class="step"><span class="n">1</span><div><h3>Crie sua conta</h3><p>E-mail e senha no site. Sem cartão, sem burocracia.</p></div></div>
-        <div class="step"><span class="n">2</span><div><h3>Baixe o OpenHUD AI</h3><p>Instalador para Windows 10/11 (64 bits), com desinstalador.</p></div></div>
-        <div class="step"><span class="n">3</span><div><h3>Entre e vincule o computador</h3><p>O aplicativo registra este PC na sua conta, com um token de dispositivo.</p></div></div>
-        <div class="step"><span class="n">4</span><div><h3>Escolha as permissões</h3><p>Básico, Tela, Controle, Automação e Voz — você decide o que liberar.</p></div></div>
-      </div>
-      <div class="notice" style="margin-top:24px">
-        O aplicativo abre uma conexão de <strong>saída</strong> (HTTPS/WSS) com o servidor. Ele <strong>não</strong> abre portas no seu computador nem o expõe à internet.
+      <div class="grid c2" style="gap:48px;align-items:start">
+        <div class="steps">
+          <div class="step"><span class="n">1</span><div><h3>Crie sua conta</h3><p>E-mail e senha no site. Sem cartão, sem burocracia.</p></div></div>
+          <div class="step"><span class="n">2</span><div><h3>Baixe o OpenHUD AI</h3><p>Instalador para Windows 10/11 (64 bits), com desinstalador.</p></div></div>
+          <div class="step"><span class="n">3</span><div><h3>Entre e vincule o computador</h3><p>O aplicativo registra este PC na sua conta, com um token de dispositivo.</p></div></div>
+          <div class="step"><span class="n">4</span><div><h3>Escolha as permissões</h3><p>Básico, Tela, Controle, Automação e Voz — você decide o que liberar, e pode revogar quando quiser.</p></div></div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <h3>Arquitetura</h3>
+            <p>Site público ⇄ servidor central (API, WebSocket, contas, memória, IA, tarefas, agentes) ⇄ aplicativo Windows. O aplicativo sempre inicia a conexão de saída (HTTPS/WSS); o seu computador não fica exposto à internet.</p>
+          </div>
+          <div class="card">
+            <h3>Privacidade por padrão</h3>
+            <p>Captura de tela, controle e voz ficam desligados até você autorizar. Você pode revogar qualquer permissão a qualquer momento, na página Minha conta.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
+  <!-- 4. CTA FINAL -->
   <section class="block">
     <div class="wrap center">
-      <h2>Pronto para começar?</h2>
-      <p>Crie sua conta e baixe o aplicativo para Windows.</p>
-      <div class="cta" style="justify-content:center;display:flex;gap:12px;flex-wrap:wrap">
+      <div class="section-head center">
+        <div class="kicker">Comece agora</div>
+        <h2>Pronto para usar o OpenHUD AI?</h2>
+        <p>Crie sua conta e baixe o aplicativo para Windows. É grátis durante o desenvolvimento.</p>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
         <a class="btn lg" href="/register">Criar conta</a>
-        <a class="btn ghost lg" href="/download">Baixar OpenHUD AI</a>
+        <a class="btn subtle lg" href="/download">Baixar OpenHUD AI</a>
+        <a class="btn ghost lg" href="/login">Entrar</a>
       </div>
     </div>
   </section>
@@ -123,8 +148,8 @@
   <div class="wrap">
     <div class="foot">
       <div>
-        <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="26" height="26" /> OpenHUD AI</a>
-        <p style="margin-top:12px;font-size:14px">Assistente inteligente para usar o computador, monitorar o PC, automatizar tarefas e conversar por voz — com permissões claras.</p>
+        <a class="brand" href="/"><img src="/static/site/logo.svg" alt="" width="25" height="25" /> OpenHUD AI</a>
+        <p style="margin-top:12px;font-size:13.5px">Assistente inteligente para usar o computador, monitorar o PC, automatizar tarefas e conversar por voz — com permissões claras.</p>
       </div>
       <div><h4>Produto</h4><a href="/features">Recursos</a><a href="/how-it-works">Como funciona</a><a href="/download">Download</a><a href="/pricing">Preços</a></div>
       <div><h4>Suporte</h4><a href="/help">Ajuda</a><a href="/download">Manual de instalação</a><a href="/changelog">Changelog</a><a href="/version">Versão</a></div>
@@ -136,7 +161,6 @@
 
 <script src="/static/site/site.js?v=5.1.0"></script>
 <script>
-  // Swap the header CTAs when the visitor is already signed in.
   fetch("/api/account/me", { credentials: "same-origin" })
     .then((r) => r.json())
     .then((d) => {

@@ -7,7 +7,8 @@ Configuration is entirely environment-driven — no credentials live in code:
     OPENHUD_SMTP_USER      username
     OPENHUD_SMTP_PASSWORD  password / app password
     OPENHUD_SMTP_TLS       "starttls" (default), "ssl" or "none"
-    OPENHUD_MAIL_FROM      From: address (default: no-reply@<host>)
+    OPENHUD_SMTP_FROM      From: address (alias: OPENHUD_MAIL_FROM;
+                           default: no-reply@openhud.local)
     OPENHUD_PUBLIC_URL     base URL used to build links in e-mails
 
 When no SMTP host is configured the module is honest about it: it does not
@@ -50,7 +51,9 @@ def public_url() -> str:
 
 
 def _from_address() -> str:
-    return os.environ.get("OPENHUD_MAIL_FROM") or "no-reply@openhud.local"
+    return (os.environ.get("OPENHUD_SMTP_FROM")
+            or os.environ.get("OPENHUD_MAIL_FROM")
+            or "no-reply@openhud.local")
 
 
 class Mailer:

@@ -2110,6 +2110,23 @@ function init() {
   const fromPath = (location.pathname.replace(/^\//, "") || "chat").split("/")[0];
   const initial = (location.hash || `#${fromPath}`).slice(1);
   switchView(VIEWS.includes(initial) ? initial : "chat");
+
+  // Mobile: the sidebar becomes an overlay; toggle it with the menu button.
+  const sidebar = document.getElementById("sidebar");
+  const menuBtn = document.getElementById("menu-toggle");
+  if (sidebar && menuBtn) {
+    menuBtn.addEventListener("click", () => {
+      const open = sidebar.classList.toggle("open");
+      menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    // Close after choosing a view on small screens.
+    sidebar.addEventListener("click", (e) => {
+      if (e.target.closest(".nav-btn")) {
+        sidebar.classList.remove("open");
+        menuBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);

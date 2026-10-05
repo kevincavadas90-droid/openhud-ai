@@ -6,6 +6,7 @@ events are streamed to the browser over Server-Sent Events.
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 from contextlib import asynccontextmanager
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -50,6 +52,20 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="OpenHUD AI", version="5.1.0", lifespan=lifespan)
+
+# CORS is opt-in and never wildcard-by-default: the browser UI is same-origin,
+# so CORS only matters for a separately hosted front-end or the desktop client.
+# Set OPENHUD_CORS_ORIGINS to a comma-separated allow-list to enable it.
+_cors_origins = settings.cors_origins
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-CSRF-Token", "Authorization"],
+    )
+
 app.include_router(agent_router)
 app.include_router(trading_router)
 app.include_router(ai_router)

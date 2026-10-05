@@ -1,0 +1,21 @@
+# Keep the image small and free of local state/secrets.
+.git
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.agent_tmp
+data
+workspace
+dist
+build
+installer/Output
+*.exe
+*.log
+.env
+.env.*
+!.env.example
+OpenHUD-AI-Complete-*.zip
+OpenHUD-AI-Complete-*.zip.sha256

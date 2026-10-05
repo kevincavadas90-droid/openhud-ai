@@ -42,19 +42,29 @@
         </div>
         <div class="field">
           <label for="password">Senha</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <div class="pw">
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar senha" aria-pressed="false"></button>
+          </div>
           <div class="err" data-error="password"></div>
+        </div>
+        <div class="form-row">
+          <label><input type="checkbox" id="remember" checked /> Manter conectado</label>
+          <a href="/forgot-password">Esqueci a senha</a>
         </div>
         <button class="btn lg block" type="submit" id="submit">Entrar</button>
         <p class="form-foot">
-          <a href="/forgot-password">Esqueci a senha</a> · <a href="/register">Criar conta</a>
+          Não tem conta? <a href="/register">Criar conta</a>
         </p>
       </form>
 
       <form id="server-form" class="hidden" novalidate>
         <div class="field">
           <label for="server-password">Senha do servidor</label>
-          <input id="server-password" name="password" type="password" autocomplete="current-password" required autofocus />
+          <div class="pw">
+            <input id="server-password" name="password" type="password" autocomplete="current-password" required autofocus />
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar senha" aria-pressed="false"></button>
+          </div>
           <div class="err" data-error="password"></div>
         </div>
         <button class="btn lg block" type="submit" id="server-submit">Entrar no servidor</button>

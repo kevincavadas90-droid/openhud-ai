@@ -1,26 +1,54 @@
-# Render Blueprint — free-tier deployment of OpenHUD.
-# Push this repo to GitHub, then "New > Blueprint" on render.com and pick it.
+# Render Blueprint — zero-cost deployment of OpenHUD AI.
+#
+# Push this repo to GitHub, then on render.com: "New > Blueprint" and pick it.
+#
+# IMPORTANT (free tier): Render free web services have NO persistent disk and
+# spin down after ~15 min idle. So for a permanent deployment you MUST provide
+# an external database, otherwise accounts/data reset on every restart. Create
+# a free Postgres at neon.tech (or supabase.com) and paste its URL into
+# OPENHUD_DATABASE_URL below (marked "sync: false" = set in the dashboard).
+#
+# WebSocket (agent) and SSE (chat) are supported on Render over HTTPS/WSS.
 services:
   - type: web
     name: openhud
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    healthCheckPath: /api/health
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
-      - key: OPENHUD_PASSWORD
-        generateValue: true # Render generates a strong password; see the dashboard
-      - key: OPENHUD_SESSION_SECRET
-        generateValue: true
+      - key: OPENHUD_HOST
+        value: 0.0.0.0
       - key: OPENHUD_DATA_DIR
         value: /data
       - key: OPENHUD_AUTH
         value: "on"
-      # Add a free provider key (Groq/Google/OpenRouter) for reliable answers,
-      # or leave empty to use the keyless Pollinations endpoint.
-      # - key: GROQ_API_KEY
-      #   sync: false
-    disk:
-      name: openhud-data
-      mountPath: /data
-      sizeGB: 1
+      # Render generates strong secrets; read them in the dashboard.
+      - key: OPENHUD_PASSWORD
+        generateValue: true
+      - key: OPENHUD_SESSION_SECRET
+        generateValue: true
+      # REQUIRED for persistence on the free tier (external Postgres URL).
+      - key: OPENHUD_DATABASE_URL
+        sync: false
+      # Public base URL, used for SEO/canonical links and reset e-mails.
+      - key: OPENHUD_PUBLIC_URL
+        sync: false
+      # Real installer link (GitHub Releases or CDN). Leave empty until it exists.
+      - key: OPENHUD_DOWNLOAD_URL
+        sync: false
+      # Optional donation link shown on /pricing.
+      - key: OPENHUD_DONATION_URL
+        sync: false
+      # Optional SMTP for verification / password-reset e-mails.
+      - key: OPENHUD_SMTP_HOST
+        sync: false
+      - key: OPENHUD_SMTP_PORT
+        sync: false
+      - key: OPENHUD_SMTP_USER
+        sync: false
+      - key: OPENHUD_SMTP_PASSWORD
+        sync: false
+      - key: OPENHUD_SMTP_FROM
+        sync: false

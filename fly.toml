@@ -1,0 +1,44 @@
+# Fly.io deployment for OpenHUD AI (persistent volume + always-on, low cost).
+#
+#   fly launch --no-deploy          # or: fly apps create openhud-ai
+#   fly volumes create openhud_data --size 1
+#   fly secrets set OPENHUD_PASSWORD=... OPENHUD_SESSION_SECRET=...
+#   fly deploy
+#
+# WebSocket (agent) and SSE (chat streaming) both work on Fly. HTTPS/WSS is
+# automatic. The volume keeps SQLite + the encrypted secret store across
+# deploys; set DATABASE_URL instead to use managed Postgres.
+app = "openhud-ai"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  OPENHUD_HOST = "0.0.0.0"
+  OPENHUD_PORT = "8000"
+  OPENHUD_DATA_DIR = "/data"
+  OPENHUD_WORKSPACE = "/data/workspace"
+  OPENHUD_AUTH = "on"
+
+[mounts]
+  source = "openhud_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

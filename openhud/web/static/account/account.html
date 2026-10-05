@@ -51,11 +51,17 @@
           <h3>Alterar senha</h3>
           <div class="field">
             <label for="cur">Senha atual</label>
-            <input id="cur" type="password" autocomplete="current-password" />
+            <div class="pw">
+              <input id="cur" type="password" autocomplete="current-password" />
+              <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar senha" aria-pressed="false"></button>
+            </div>
           </div>
           <div class="field">
             <label for="new">Nova senha</label>
-            <input id="new" type="password" autocomplete="new-password" />
+            <div class="pw">
+              <input id="new" type="password" autocomplete="new-password" />
+              <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar senha" aria-pressed="false"></button>
+            </div>
           </div>
           <button class="btn" id="save-pass">Alterar senha</button>
           <div class="form-notice" id="pass-notice" hidden style="margin-top:12px"></div>
@@ -77,7 +83,12 @@
         <h3>Excluir conta</h3>
         <p class="muted" style="font-size:14px">Esta ação é permanente: remove a conta, as sessões e os dispositivos vinculados. Digite <span class="mono">EXCLUIR</span> para confirmar.</p>
         <div class="field"><label for="del-confirm">Confirmação</label><input id="del-confirm" type="text" placeholder="EXCLUIR" /></div>
-        <div class="field"><label for="del-pass">Sua senha</label><input id="del-pass" type="password" /></div>
+        <div class="field"><label for="del-pass">Sua senha</label>
+          <div class="pw">
+            <input id="del-pass" type="password" />
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Mostrar senha" aria-pressed="false"></button>
+          </div>
+        </div>
         <button class="btn" id="delete" style="background:var(--err)">Excluir minha conta</button>
         <div class="form-notice" id="del-notice" hidden style="margin-top:12px"></div>
       </div>
