@@ -4,7 +4,6 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)](#8-testes)
 [![Version](https://img.shields.io/badge/version-5.1.1-informational.svg)](#1-diagnóstico-do-ambiente-estado-atual)
-[![CI](https://github.com/kevincavadas90-droid/openhud-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/kevincavadas90-droid/openhud-ai/actions/workflows/ci.yml)
 
 > Repositório: <https://github.com/kevincavadas90-droid/openhud-ai> ·
 > Release: <https://github.com/kevincavadas90-droid/openhud-ai/releases/tag/v5.1.1>
