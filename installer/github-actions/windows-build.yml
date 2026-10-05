@@ -1,0 +1,163 @@
+name: Windows build
+
+# Builds the real Windows application (OpenHUD AI.exe + openhud-agent.exe) and
+# the Inno Setup installer (OpenHUD-AI-Setup.exe) on a real Windows runner, then
+# smoke-tests the frozen executables. Nothing here is simulated: the artifacts
+# are produced by PyInstaller + Inno Setup and the server inside the .exe is
+# queried over HTTP before the job is allowed to pass.
+#
+# Triggers:
+#   * push of a tag "v*"      -> build, smoke-test and attach assets to the Release
+#   * manual (workflow_dispatch) -> build and smoke-test; publish when asked
+#   * pull_request touching packaging files -> build + smoke-test only
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da Release a publicar (ex.: v5.2.0). Vazio = não publicar."
+        type: string
+        default: ""
+  pull_request:
+    paths:
+      - "openhud/**"
+      - "installer/**"
+      - "tools/make_release.py"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - ".github/workflows/windows-build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (python -c "import openhud; print(openhud.__version__)").Trim()
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "OpenHUD AI $v"
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-desktop.txt
+
+      - name: Run test suite
+        shell: pwsh
+        run: python -m pytest -q
+
+      - name: Build the desktop app (PyInstaller)
+        shell: pwsh
+        run: python -m openhud.desktop.build
+
+      - name: Build the PC agent (PyInstaller)
+        shell: pwsh
+        run: python -m openhud.agent.build_exe
+
+      - name: Smoke-test the frozen executables
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Write-Host "== openhud-agent.exe --print-metrics =="
+          & "dist\openhud-agent.exe" --print-metrics | Select-Object -First 5
+          if ($LASTEXITCODE -ne 0) { throw "openhud-agent.exe falhou ($LASTEXITCODE)" }
+
+          Write-Host "== OpenHUD AI.exe --console --no-browser =="
+          $port = 8123
+          $proc = Start-Process -FilePath "dist\OpenHUD AI.exe" `
+            -ArgumentList "--console", "--no-browser", "--port", "$port" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 40; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$port/health" -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { }
+          }
+          if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+          if (-not $ok) { throw "O servidor dentro do .exe nao respondeu em /health" }
+          Write-Host "Servidor embutido respondeu 200 em /health." -ForegroundColor Green
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile the installer
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe nao encontrado" }
+          & $iscc "/DMyAppVersion=${{ steps.ver.outputs.version }}" "installer\openhud.iss"
+          if (-not (Test-Path "installer\Output\OpenHUD-AI-Setup.exe")) {
+            throw "OpenHUD-AI-Setup.exe nao foi gerado"
+          }
+
+      - name: Generate release manifest (size + SHA-256)
+        shell: pwsh
+        run: python tools/make_release.py
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openhud-windows-${{ steps.ver.outputs.version }}
+          if-no-files-found: error
+          path: |
+            installer/Output/OpenHUD-AI-Setup.exe
+            installer/Output/release.json
+            dist/OpenHUD AI.exe
+            dist/openhud-agent.exe
+
+  release:
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build the source bundle
+        run: python tools/prepare_release.py
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: openhud-windows-${{ needs.build-windows.outputs.version }}
+          path: artifacts
+
+      - name: Attach assets to the Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+          files: |
+            dist/OpenHUD-AI-Complete-${{ needs.build-windows.outputs.version }}.zip
+            artifacts/installer/Output/OpenHUD-AI-Setup.exe
+            artifacts/installer/Output/release.json
+          fail_on_unmatched_files: true

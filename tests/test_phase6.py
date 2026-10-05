@@ -54,7 +54,7 @@ def test_site_is_public_but_app_is_protected():
 def test_version_and_release_api():
     v = client.get("/version").json()
     assert v["app"] == "openhud"
-    assert v["version"] == "5.1.1"
+    assert v["version"] == "5.2.0"
     assert "download" in v
     rel = client.get("/api/site/release").json()
     assert rel["filename"] == "OpenHUD-AI-Setup.exe"

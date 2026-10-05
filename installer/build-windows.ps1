@@ -33,7 +33,9 @@ Write-Host "`n[4/5] Compilando o instalador (Inno Setup)..." -ForegroundColor Ye
 if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
     throw "iscc (Inno Setup 6) não encontrado no PATH. Instale em https://jrsoftware.org/isdl.php"
 }
-iscc installer\openhud.iss
+$version = (python -c "import openhud; print(openhud.__version__)").Trim()
+Write-Host "Versão do produto: $version" -ForegroundColor DarkGray
+iscc "/DMyAppVersion=$version" installer\openhud.iss
 
 Write-Host "`n[5/5] Gerando o manifesto de release (tamanho + SHA-256)..." -ForegroundColor Yellow
 python tools\make_release.py

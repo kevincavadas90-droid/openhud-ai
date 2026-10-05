@@ -365,3 +365,34 @@ Instalar sem pipe-to-shell: baixar
 - **Teste no Windows**: `installer/windows-smoke-test.ps1` automatiza o
   `WINDOWS_TEST.md` e grava `windows-test-report.json`; PowerShell não existe
   neste ambiente Linux, então o script não pôde ser executado aqui.
+- **Doação LivePix + QR oficial (v5.2.0)**: o QR Code oficial do LivePix é o
+  asset `openhud/web/static/site/assets/livepix-qr.png` (imagem original
+  fornecida, sem modificações; SHA-256
+  `2980a0babe5c52144f88b806bdc32185b01ff82b0d48049b923c2336a03535ec`,
+  165x186, decodifica para `https://livepix.gg/supimpa2`). A URL padrão de
+  doação vive em `openhud/core/release.py` (`LIVEPIX_URL`) e é exposta em
+  `/api/site/config` (`donation_url`, `donation_provider`, `donation_handle`,
+  `donation_qr`). `/pricing` mostra o QR (renderizado no tamanho natural, sem
+  reamostragem), o botão APOIAR O PROJETO e a alternativa textual acessível.
+  `OPENHUD_DONATION_URL` sobrescreve; vazio esconde o botão. Testes em
+  `tests/test_donation.py` (verificam o hash do asset e, quando `zxingcpp` +
+  `opencv` estão instalados, decodificam o QR de volta para a URL).
+- **Build Windows real via GitHub Actions (v5.2.0)**: o workflow vive como
+  **template** em `installer/github-actions/windows-build.yml` (um token de push
+  só com escopo `repo` é recusado pelo GitHub ao criar arquivos em
+  `.github/workflows/`; por isso o arquivo não fica versionado lá por padrão).
+  `python installer/enable-github-build.py` copia o template para
+  `.github/workflows/windows-build.yml` (idempotente). O workflow roda em
+  `windows-latest`, gera `dist/OpenHUD AI.exe` e `dist/openhud-agent.exe`
+  (PyInstaller) e `installer/Output/OpenHUD-AI-Setup.exe` (Inno Setup), com smoke
+  test dos `.exe` congelados (servidor embutido respondendo 200 em `/health`)
+  antes de publicar. Dispara por tag `v*` ou `workflow_dispatch` (input `tag`).
+  Os specs `openhud/desktop/build.py` e `openhud/agent/build_exe.py` embutem
+  `openhud/web/static` (via `--add-data`), importam o submódulo `uvicorn` inteiro
+  (`--collect-submodules uvicorn`) e só adicionam hidden-imports opcionais
+  (pynvml/MetaTrader5) quando instalados — sem isso o `uvicorn` quebra congelado
+  (`No module named 'uvicorn.logging'`). `installer/build-windows.ps1` injeta a
+  versão real via `iscc /DMyAppVersion=<versao>`. Os testes em
+  `tests/test_devices.py` cobrem o ciclo de dispositivo (registro -> vínculo ->
+  permissões -> revogação -> exclusão de conta) e a resolução do link de
+  download (nunca inventado).

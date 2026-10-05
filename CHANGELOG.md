@@ -4,6 +4,25 @@ Todas as mudanças relevantes do OpenHUD AI. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento
 segue [SemVer](https://semver.org/lang/pt-BR/).
 
+## 5.2.0 (2026-10-05)
+
+- **Apoio via LivePix**: a área de apoio em `/pricing` agora mostra o QR Code
+  oficial do LivePix (imagem fornecida, sem modificações) e o botão
+  **APOIAR O PROJETO** aponta para <https://livepix.gg/supimpa2>. Inclui
+  alternativa textual acessível (`Ou acesse: livepix.gg/supimpa2`) e layout
+  responsivo (desktop e celular). O link é público (não é credencial) e pode
+  ser trocado por `OPENHUD_DONATION_URL`; defina a variável como vazia para
+  esconder o botão.
+- **Aplicativo Windows real e instalável**: pipeline de build no Windows
+  (PyInstaller + Inno Setup) via GitHub Actions em runner `windows-latest`,
+  gerando `OpenHUD AI.exe`, `openhud-agent.exe` e o instalador
+  `OpenHUD-AI-Setup.exe`. O workflow faz smoke test dos executáveis congelados
+  (servidor embutido respondendo em `/health`) antes de publicar.
+- **Download real**: a página `/download` passa a exibir o instalador real
+  (versão, tamanho, SHA-256 e link) assim que `OPENHUD_DOWNLOAD_URL` aponta
+  para o asset publicado; nunca mostra um link falso.
+- Versão do produto elevada para 5.2.0.
+
 ## 5.1.1 (2026-10-04)
 
 - **Cabeçalhos de segurança** em todas as respostas: `Content-Security-Policy`

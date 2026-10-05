@@ -28,6 +28,15 @@ ARTIFACT_NAME = "OpenHUD-AI-Setup.exe"
 LEGACY_ARTIFACT_NAMES = ("OpenHUD AI Setup.exe", "openhud-setup.exe")
 SOURCE_ARTIFACT_NAME = f"OpenHUD-AI-Complete-{__version__}.zip"
 
+# Official, public donation page (LivePix). This is a public link, not a
+# credential, so it may live in the code; the operator can still override it
+# with OPENHUD_DONATION_URL. The QR image shipped on the site encodes exactly
+# this URL (verified by decoding the asset), so it must never change silently.
+LIVEPIX_URL = "https://livepix.gg/supimpa2"
+LIVEPIX_HANDLE = "livepix.gg/supimpa2"
+LIVEPIX_QR_PATH = "/static/site/assets/livepix-qr.png"
+LIVEPIX_PROVIDER = "LivePix"
+
 # Where a real build would land if compiled on Windows and copied into the repo.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -268,7 +277,17 @@ def changelog_summary(limit: int = 4) -> str:
 def donation_url() -> str | None:
     """A real donation link, only when the operator configured one.
 
-    The pricing page must never invent a payment address, so this returns
-    ``None`` unless ``OPENHUD_DONATION_URL`` is set.
+    The pricing page must never invent a payment address. When
+    ``OPENHUD_DONATION_URL`` is unset we fall back to the official LivePix page
+    shipped with the project (a public link, not a secret). Set the env var to
+    an empty string to hide the button entirely.
     """
-    return os.environ.get("OPENHUD_DONATION_URL", "").strip() or None
+    override = os.environ.get("OPENHUD_DONATION_URL")
+    if override is not None and override.strip() == "":
+        return None
+    return (override or "").strip() or LIVEPIX_URL
+
+
+def donation_qr_path() -> str:
+    """Site-relative path to the official LivePix QR image (a static asset)."""
+    return LIVEPIX_QR_PATH

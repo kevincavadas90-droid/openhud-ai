@@ -10,12 +10,14 @@ Produces:
     dist/openhud-agent.exe           — the PC agent (optional, same build)
 
 The installer (installer/openhud.iss) then packages ``OpenHUD AI.exe`` into
-``OpenHUD AI Setup.exe`` using Inno Setup.
+``OpenHUD-AI-Setup.exe`` using Inno Setup.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+from openhud import __version__
 
 
 def _hidden_imports() -> list[str]:
@@ -34,6 +36,26 @@ def _hidden_imports() -> list[str]:
     return mods
 
 
+def _pyinstaller_args(entry: Path, name: str, root: Path, windowed: bool) -> list[str]:
+    static = root / "openhud" / "web" / "static"
+    sep = ";" if sys.platform == "win32" else ":"
+    args = [
+        str(entry),
+        "--name", name,
+        "--onefile",
+        "--paths", str(root),
+        "--add-data", f"{static}{sep}openhud/web/static",
+        "--collect-submodules", "uvicorn",
+        "--collect-submodules", "openhud",
+        "--clean", "--noconfirm",
+    ]
+    if windowed:
+        args.append("--windowed")
+    for m in _hidden_imports():
+        args += ["--hidden-import", m]
+    return args
+
+
 def build_desktop() -> int:
     try:
         import PyInstaller.__main__ as pyi
@@ -43,24 +65,14 @@ def build_desktop() -> int:
 
     root = Path(__file__).resolve().parents[2]
     entry = Path(__file__).with_name("app.py")
-    static = root / "openhud" / "web" / "static"
-    sep = ";" if sys.platform == "win32" else ":"
-    args = [
-        str(entry),
-        "--name", "OpenHUD AI",
-        "--onefile",
-        "--windowed",
-        "--paths", str(root),
-        "--add-data", f"{static}{sep}openhud/web/static",
-        "--collect-submodules", "uvicorn",
-        "--collect-submodules", "openhud",
-        "--clean", "--noconfirm",
-    ]
-    for m in _hidden_imports():
-        args += ["--hidden-import", m]
-    print("PyInstaller", " ".join(args))
+    args = _pyinstaller_args(entry, "OpenHUD AI", root, windowed=True)
+    print(f"OpenHUD AI {__version__} — PyInstaller {' '.join(args)}")
     pyi.run(args)
-    print("Pronto: dist/OpenHUD AI" + (".exe" if sys.platform == "win32" else ""))
+    out = root / "dist" / ("OpenHUD AI.exe" if sys.platform == "win32" else "OpenHUD AI")
+    if not out.is_file():
+        print(f"FALHA: {out} não foi gerado.")
+        return 1
+    print(f"Pronto: {out}")
     return 0
 
 

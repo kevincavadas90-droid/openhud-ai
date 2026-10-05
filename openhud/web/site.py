@@ -15,6 +15,7 @@ Routes:
 """
 from __future__ import annotations
 
+import html as _html
 import os
 from typing import Any
 
@@ -35,6 +36,7 @@ PUBLIC_SITE_PATHS = {
     "/api/site/release", "/api/site/changelog", "/api/site/config",
     "/sitemap.xml", "/robots.txt",
     "/static/site/logo.svg", "/static/site/favicon.svg",
+    "/static/site/assets/livepix-qr.png",
 }
 
 # Simple, consistent line icons (Feather-style, stroke = currentColor).
@@ -119,6 +121,9 @@ def api_site_config() -> dict[str, Any]:
     """Public, non-sensitive site configuration used by the pages."""
     return {
         "donation_url": release_mod.donation_url(),
+        "donation_provider": release_mod.LIVEPIX_PROVIDER,
+        "donation_handle": release_mod.LIVEPIX_HANDLE,
+        "donation_qr": release_mod.donation_qr_path(),
         "accounts_enabled": os.environ.get("OPENHUD_ACCOUNTS", "on").lower()
         not in {"off", "0", "false"},
         "public_url": os.environ.get("OPENHUD_PUBLIC_URL", "").rstrip("/"),
@@ -202,14 +207,27 @@ def how_it_works(request: Request) -> str:
 @router.get("/pricing", response_class=HTMLResponse)
 def pricing(request: Request) -> str:
     donation = release_mod.donation_url()
+    provider = release_mod.LIVEPIX_PROVIDER
+    handle = release_mod.LIVEPIX_HANDLE
     if donation:
-        donate_action = (f'<a class="btn lg" href="{donation}" target="_blank" rel="noopener noreferrer">'
-                         f'APOIAR O PROJETO</a>')
-        donate_note = "Obrigado! Cada contribuição ajuda a manter a infraestrutura e o desenvolvimento."
+        safe = _html.escape(donation, quote=True)
+        donate_action = (f'<a class="btn lg support-btn" href="{safe}" target="_blank" '
+                         f'rel="noopener noreferrer">APOIAR O PROJETO</a>')
+        qr = release_mod.donation_qr_path()
+        support_media = f"""
+        <figure class="qr">
+          <img src="{qr}" width="165" height="186" loading="lazy" decoding="async"
+               alt="QR Code do {provider} para apoiar o OpenHUD AI — aponta para {handle}">
+          <figcaption>Aponte a câmera do celular para o QR Code.</figcaption>
+        </figure>"""
+        donate_note = (f'Ou acesse: <a href="{safe}" target="_blank" rel="noopener noreferrer">'
+                       f'{handle}</a>')
     else:
-        donate_action = '<button class="btn lg" disabled title="Configure OPENHUD_DONATION_URL">APOIAR O PROJETO</button>'
-        donate_note = ("O botão será ativado assim que o endereço de doação for configurado "
-                       "(variável <code>OPENHUD_DONATION_URL</code>). Não inventamos um endereço de pagamento.")
+        donate_action = ('<button class="btn lg support-btn" disabled '
+                         'title="Doação desativada">APOIAR O PROJETO</button>')
+        support_media = ""
+        donate_note = ("Apoio desativado neste servidor "
+                       "(<code>OPENHUD_DONATION_URL</code> vazio). Não inventamos um endereço de pagamento.")
     body = f"""
   <section class="block" style="border-top:none">
     <div class="wrap">
@@ -251,11 +269,16 @@ def pricing(request: Request) -> str:
   <section class="block">
     <div class="wrap">
       <div class="support">
-        <div class="kicker">Apoie o desenvolvimento</div>
-        <h3>APOIE O DESENVOLVIMENTO</h3>
-        <p>O OpenHUD AI está sendo desenvolvido continuamente. Sua contribuição ajuda a manter a infraestrutura, servidores e o desenvolvimento de novos recursos.</p>
-        <div class="actions">{donate_action}</div>
-        <p class="fine" style="margin-top:16px">{donate_note}</p>
+        <div class="support-grid">
+          <div class="support-copy">
+            <div class="kicker">Apoie o desenvolvimento</div>
+            <h2 class="support-title">APOIE O DESENVOLVIMENTO</h2>
+            <p>O OpenHUD AI está sendo desenvolvido para oferecer uma ferramenta completa de assistência, monitoramento e otimização para Windows. Sua contribuição ajuda a manter a infraestrutura, os servidores e o desenvolvimento de novos recursos.</p>
+            <div class="actions">{donate_action}</div>
+            <p class="fine">{donate_note}</p>
+          </div>
+          {support_media}
+        </div>
       </div>
       <p class="muted" style="margin-top:18px;font-size:13.5px">Não prometemos que o OpenHUD AI será gratuito para sempre — mas, enquanto for, avisaremos antes de qualquer mudança.</p>
     </div>

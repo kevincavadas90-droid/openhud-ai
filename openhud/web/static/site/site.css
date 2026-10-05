@@ -227,11 +227,27 @@ section.block { padding: 72px 0; border-top: 1px solid var(--line); }
     var(--surface);
   padding: 34px;
 }
+.support-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
+.support-copy { min-width: 0; }
 .support .kicker { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+.support-title { font-size: clamp(20px, 2.4vw, 26px); margin: 0 0 10px; }
 .support h3 { font-size: clamp(20px, 2.4vw, 26px); margin-bottom: 10px; }
 .support p { max-width: 620px; margin-bottom: 22px; }
 .support .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .support .fine { color: var(--faint); font-size: 12.5px; margin: 0; }
+.support .fine a { color: var(--accent); text-decoration: none; }
+.support .fine a:hover { text-decoration: underline; }
+.support-btn { font-weight: 600; }
+.support .qr {
+  margin: 0; padding: 14px; border-radius: var(--radius);
+  background: #fff; border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  width: auto; justify-self: end;
+}
+/* Render the official image at its natural size (165x186) so it is never
+   resampled; aspect ratio is preserved on every screen. */
+.support .qr img { display: block; width: 165px; height: 186px; max-width: 100%; border-radius: 4px; }
+.support .qr figcaption { font-size: 11.5px; color: #4a4f5a; text-align: center; line-height: 1.35; }
 
 /* ------------------------------------------------------------------- faq */
 .faq { display: grid; gap: 10px; }
@@ -348,6 +364,8 @@ footer.site { border-top: 1px solid var(--line); padding: 50px 0 40px; margin-to
   }
   .acct-grid { grid-template-columns: 1fr; }
   .dl-meta { grid-template-columns: 1fr 1fr; }
+  .support-grid { grid-template-columns: 1fr; gap: 24px; }
+  .support .qr { justify-self: start; }
 }
 @media (max-width: 560px) {
   .grid.c2, .grid.c3, .grid.c4 { grid-template-columns: 1fr; }

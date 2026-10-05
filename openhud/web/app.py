@@ -51,7 +51,7 @@ async def lifespan(_: FastAPI):
     runtime.job_queue.stop()
 
 
-app = FastAPI(title="OpenHUD AI", version="5.1.1", lifespan=lifespan)
+app = FastAPI(title="OpenHUD AI", version="5.2.0", lifespan=lifespan)
 
 # CORS is opt-in and never wildcard-by-default: the browser UI is same-origin,
 # so CORS only matters for a separately hosted front-end or the desktop client.

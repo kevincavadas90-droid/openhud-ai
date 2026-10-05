@@ -101,6 +101,8 @@ Variáveis de ambiente úteis:
 | `OPENHUD_AUTH` | `on` | `off` desliga o login (só para uso local/privado) |
 | `DATABASE_URL` | — | URL PostgreSQL; vazio usa SQLite |
 | `OPENHUD_DOWNLOAD_URL` | — | URL real do instalador (GitHub Releases/CDN) exibida em `/download` |
+| `OPENHUD_SOURCE_URL` | release vX | URL real do ZIP de código-fonte exibida em `/download` |
+| `OPENHUD_DONATION_URL` | LivePix oficial | Link de doação em `/pricing` (vazio esconde o botão) |
 | `OPENHUD_SERVE_INSTALLER` | `off` | `1` serve o instalador local em `/download/file` (VPS) |
 | `OPENHUD_RELEASE_DIR` | — | Pasta alternativa onde procurar `OpenHUD-AI-Setup.exe` |
 
@@ -641,8 +643,57 @@ simples. São aplicadas na hora (classes no `<body>`) e persistem no banco.
 ```bash
 pip install -r requirements-desktop.txt
 python -m openhud.desktop.build          # gera dist/OpenHUD AI.exe (no Windows)
-iscc installer/openhud.iss               # gera "OpenHUD AI Setup.exe"
+python -m openhud.agent.build_exe        # gera dist/openhud-agent.exe (opcional)
+iscc /DMyAppVersion=5.2.0 installer/openhud.iss   # gera installer/Output/OpenHUD-AI-Setup.exe
 ```
+
+### Programa Windows real (instalável) — build automatizado
+
+Para gerar o **instalador oficial sem precisar de um PC Windows**, use o
+workflow do GitHub Actions, que roda em um runner `windows-latest` real.
+
+O arquivo do workflow é mantido como **template** em
+`installer/github-actions/windows-build.yml` (assim o projeto continua
+publicável por um token com escopo apenas `repo`). Ative-o uma vez, com um
+token que tenha o escopo `workflow`:
+
+```bash
+python installer/enable-github-build.py   # copia para .github/workflows/
+git add .github/workflows/windows-build.yml
+git commit -m "ci: enable Windows build"
+git push
+```
+
+1. **Automático por tag**: crie e envie a tag da versão (`git tag v5.2.0 &&
+   git push origin v5.2.0`). O workflow compila, testa os executáveis
+   congelados e anexa `OpenHUD-AI-Setup.exe` (e o ZIP de código-fonte) à
+   Release.
+2. **Manual**: em **Actions → Windows build → Run workflow**, informe a tag a
+   publicar (deixe vazio para apenas compilar e baixar os artefatos).
+
+O que o workflow faz, em um Windows real:
+
+- roda a suíte de testes (`pytest`);
+- gera `dist/OpenHUD AI.exe` e `dist/openhud-agent.exe` com PyInstaller;
+- faz **smoke test** dos `.exe` congelados: `openhud-agent.exe --print-metrics`
+  e `OpenHUD AI.exe --console --no-browser`, esperando `200` em `/health`;
+- instala o Inno Setup e compila `installer/Output/OpenHUD-AI-Setup.exe`;
+- gera `installer/Output/release.json` (tamanho + SHA-256 reais);
+- publica os artefatos como assets da Release da tag.
+
+Depois de publicado, defina no servidor (Render) a variável
+`OPENHUD_DOWNLOAD_URL` apontando para o asset e o botão **BAIXAR PARA WINDOWS**
+aparece automaticamente em `/download`, com tamanho e SHA-256 reais.
+
+### Apoio ao projeto (LivePix)
+
+A página `/pricing` mostra o QR Code oficial do LivePix e o botão
+**APOIAR O PROJETO** apontando para <https://livepix.gg/supimpa2>. O link é
+público (não é credencial) e pode ser trocado por `OPENHUD_DONATION_URL`;
+defina a variável como vazia para esconder o botão. A imagem do QR
+(`openhud/web/static/site/assets/livepix-qr.png`) é o arquivo original, sem
+modificações — o teste `tests/test_donation.py` verifica o SHA-256 e o decodifica
+de volta para a URL.
 
 ### Hospedagem oficial (Parts 18/21/22/23)
 - **Container**: `Dockerfile` com `HEALTHCHECK` em `/health` e volume `/data`.

@@ -10,8 +10,19 @@ The result is a single file that runs the agent with no Python installed:
 """
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
+
+
+def _optional_hidden() -> list[str]:
+    """Only add hidden imports for modules that are actually installed, so the
+    build never fails on a missing optional dependency (NVML, MetaTrader5)."""
+    out: list[str] = []
+    for mod in ("pynvml", "MetaTrader5"):
+        if importlib.util.find_spec(mod) is not None:
+            out += ["--hidden-import", mod]
+    return out
 
 
 def main() -> int:
@@ -30,15 +41,18 @@ def main() -> int:
         "--onefile",
         "--console",
         "--paths", str(root),
-        "--hidden-import", "pynvml",
-        # Only present on Windows; PyInstaller warns but does not fail when absent.
-        "--hidden-import", "MetaTrader5",
+        "--collect-submodules", "openhud",
         "--clean",
         "--noconfirm",
+        *_optional_hidden(),
     ]
     print("PyInstaller", " ".join(args))
     pyi.run(args)
-    print(f"Pronto: dist/{name}")
+    out = root / "dist" / name
+    if not out.is_file():
+        print(f"FALHA: {out} não foi gerado.")
+        return 1
+    print(f"Pronto: {out}")
     return 0
 
 

@@ -78,7 +78,7 @@ def page_shell(title: str, description: str, active: str, body: str,
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" />
-<link rel="stylesheet" href="/static/site/site.css?v=5.1.1" />
+<link rel="stylesheet" href="/static/site/site.css?v=5.2.0" />
 </head>
 <body class="{body_class}">
 <header class="site">
@@ -106,6 +106,6 @@ def page_shell(title: str, description: str, active: str, body: str,
     <p class="fine">OpenHUD AI · versão <span id="foot-version">{__version__}</span> · Windows 10/11 (64 bits). Este site não coleta dados sem a sua ação.</p>
   </div>
 </footer>
-<script src="/static/site/site.js?v=5.1.1"></script>
+<script src="/static/site/site.js?v=5.2.0"></script>
 </body>
 </html>"""

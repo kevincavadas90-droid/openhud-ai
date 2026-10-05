@@ -15,7 +15,7 @@
 
 #define MyAppName "OpenHUD AI"
 #ifndef MyAppVersion
-  #define MyAppVersion "5.1.1"
+  #define MyAppVersion "5.2.0"
 #endif
 #define MyAppPublisher "OpenHUD"
 #define MyAppURL "https://github.com/"
