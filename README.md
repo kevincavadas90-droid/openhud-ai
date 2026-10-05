@@ -4,6 +4,10 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)](#8-testes)
 [![Version](https://img.shields.io/badge/version-5.1.1-informational.svg)](#1-diagnóstico-do-ambiente-estado-atual)
+[![CI](https://github.com/kevincavadas90-droid/openhud-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/kevincavadas90-droid/openhud-ai/actions/workflows/ci.yml)
+
+> Repositório: <https://github.com/kevincavadas90-droid/openhud-ai> ·
+> Release: <https://github.com/kevincavadas90-droid/openhud-ai/releases/tag/v5.1.1>
 
 OpenHUD AI é uma inteligência artificial pessoal **multifuncional, extensível e
 configurável**. Ela combina um agente de execução com ferramentas reais
@@ -443,6 +447,8 @@ estado em `OPENHUD_DATA_DIR`. O guia completo está em **[DEPLOY.md](DEPLOY.md)*
 
 **Plataforma escolhida: Render (plano grátis) + Postgres no Neon.** Custo zero,
 HTTPS/WebSocket/SSE automáticos e banco persistente. Passo a passo:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kevincavadas90-droid/openhud-ai)
 
 1. Suba o repositório no GitHub (veja §7 do DEPLOY.md).
 2. Crie um Postgres grátis no [neon.tech](https://neon.tech).
