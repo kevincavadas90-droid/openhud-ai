@@ -58,7 +58,7 @@ def _db_check(runtime) -> dict[str, Any]:
 def _llm_check(runtime) -> dict[str, Any]:
     s = runtime.get_settings()
     provider = s.get("provider", "pollinations")
-    configured = bool(runtime.secrets.get(provider)) or provider in ("pollinations", "ollama")
+    configured = bool(runtime.secrets.get_or_none(provider)) or provider in ("pollinations", "ollama")
     return {
         "detail": f"Provider selecionado: {provider} ({s.get('model')}).",
         "provider": provider, "model": s.get("model"),

@@ -32,6 +32,21 @@ def test_crypto_roundtrip():
     assert cipher.decrypt(token) == "super-secret-value"
 
 
+def test_crypto_env_key_wins_and_survives_missing_file(monkeypatch):
+    """On a diskless host the key file is lost; OPENHUD_ENCRYPTION_KEY must keep
+    stored secrets decryptable across restarts."""
+    from cryptography.fernet import Fernet
+
+    key = Fernet.generate_key().decode()
+    monkeypatch.setenv("OPENHUD_ENCRYPTION_KEY", key)
+    missing = Path(_TMP) / "never-written.key"
+    first = SecretCipher(missing)
+    token = first.encrypt("api-key-value")
+    assert not missing.exists()  # env key means no file is created
+    second = SecretCipher(missing)  # simulates a fresh process/container
+    assert second.decrypt(token) == "api-key-value"
+
+
 def test_secret_store_masks():
     db = Database(Path(_TMP) / "s.db")
     store = SecretStore(db, SecretCipher(Path(_TMP) / "k2.key"))

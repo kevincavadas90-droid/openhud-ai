@@ -1,11 +1,41 @@
-# OpenHUD — IA multifuncional autônoma
+# OpenHUD AI — IA multifuncional autônoma
 
-OpenHUD é uma inteligência artificial pessoal multifuncional, extensível e
-configurável. Ela combina um agente de execução com ferramentas reais
-(terminal, Python, arquivos, internet, APIs), memória de longo prazo,
-múltiplos provedores de modelo e uma interface web moderna.
+[![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-227%20passing-brightgreen.svg)](#8-testes)
+[![Version](https://img.shields.io/badge/version-5.1.0-informational.svg)](#1-diagnóstico-do-ambiente-estado-atual)
+
+OpenHUD AI é uma inteligência artificial pessoal **multifuncional, extensível e
+configurável**. Ela combina um agente de execução com ferramentas reais
+(terminal, Python, arquivos, internet, APIs), memória de longo prazo, múltiplos
+provedores de modelo, um agente para o seu PC e uma interface web moderna — com
+cadastro, login e dispositivos vinculados à conta.
 
 O objetivo não é apenas conversar, mas **executar tarefas concretas**.
+
+### Principais recursos
+
+- **Assistente + programador + pesquisador + automação** em uma única interface.
+- **Monitoramento real do PC**: CPU, GPU, RAM, disco e rede (valores observados,
+  nunca inventados).
+- **Agente Windows** que inicia conexão de saída (WSS) — seu PC não fica exposto.
+- **Multi-provedor de modelo** com cadeia de fallback e modo sem chave.
+- **Contas de usuário**, login, recuperação de senha e dispositivos vinculados.
+- **Voz, Codex de engenharia, plugins, imagens, vídeo e trading (MT5)**.
+- **Site público + API + login** servidos pelo mesmo processo FastAPI.
+- **Pronto para deploy**: `Dockerfile`, `docker-compose.yml` e configurações de
+  Fly.io / Render / Railway.
+
+### Início rápido
+
+```bash
+git clone https://github.com/SEU-USUARIO/openhud-ai.git
+cd openhud-ai
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m openhud        # http://localhost:8000
+```
+
+Para hospedar na nuvem, veja **[DEPLOY.md](DEPLOY.md)**.
 
 ---
 
@@ -21,7 +51,7 @@ O objetivo não é apenas conversar, mas **executar tarefas concretas**.
 | Sem chave | Pollinations (keyless) e Ollama local |
 | Execução | Terminal e Python em sandbox de workspace |
 | Autenticação | Contas de usuário (e-mail/senha) **ou** senha de operador (`OPENHUD_PASSWORD`) |
-| Testes | pytest — **208 testes, todos passando** |
+| Testes | pytest — **227 testes, todos passando** |
 | Site público | Páginas de marketing + cadastro/login servidas pelo mesmo app |
 | Distribuição | Instalador Windows (Inno Setup) + GitHub Releases / URL externa |
 
@@ -406,49 +436,39 @@ nunca gravada), ou pelo assistente de primeira execução. Ele guarda apenas o
 - Dispositivos vinculados à conta; pareamento e revogação auditáveis.
 - Nenhuma tentativa de contornar autenticação de terceiros.
 
-## 10b. Implantação (hospedagem gratuita)
+## 10b. Implantação (hospedagem pública)
 
 O container expõe a porta definida por `PORT`/`OPENHUD_PORT` e guarda todo o
-estado em `OPENHUD_DATA_DIR`. Há três caminhos:
+estado em `OPENHUD_DATA_DIR`. O guia completo está em **[DEPLOY.md](DEPLOY.md)**.
 
-1. **Docker / VPS (recomendado, permanente)**
-   ```bash
-   docker build -t openhud .
-   docker run -d --name openhud -p 8000:8000 \
-     -e OPENHUD_PASSWORD='uma-senha-forte' \
-     -v openhud-data:/data openhud
-   ```
-2. **Render (plano free)** — faça push para o GitHub, depois *New > Blueprint*
-   e aponte para `render.yaml`. O Render injeta `PORT` e gera a senha; adicione
-   um disco em `/data` para persistir o estado.
-3. **Railway / Fly.io / Cloud Run** — usam o `Dockerfile` diretamente; defina
-   `OPENHUD_PASSWORD`, `OPENHUD_SESSION_SECRET` e um volume em `/data`.
+**Plataforma escolhida: Render (plano grátis) + Postgres no Neon.** Custo zero,
+HTTPS/WebSocket/SSE automáticos e banco persistente. Passo a passo:
 
-Para banco permanente sem cartão de crédito, crie um Postgres gratuito em
-**Neon**, **Supabase** ou **Aiven** e defina `DATABASE_URL` — o OpenHUD passa
-a persistir conversas, memória e tarefas no Postgres automaticamente.
+1. Suba o repositório no GitHub (veja §7 do DEPLOY.md).
+2. Crie um Postgres grátis no [neon.tech](https://neon.tech).
+3. No [render.com](https://render.com): *New → Blueprint* → repositório.
+4. Preencha `OPENHUD_DATABASE_URL` (URL do Neon) e `OPENHUD_PUBLIC_URL`.
+   `OPENHUD_PASSWORD`, `OPENHUD_SESSION_SECRET` e `OPENHUD_ENCRYPTION_KEY` são
+   gerados pelo `render.yaml`.
+5. *Apply* e aguarde o deploy. Healthcheck: `/health`.
 
-Sem nenhuma chave de API, a instalação nova responde via **Pollinations**
-(keyless) e, se houver um Ollama local, usa-o como reforço. Para respostas
-mais confiáveis, adicione uma chave gratuita de **Groq** ou **Google AI
-Studio** em Configurações.
+> No plano grátis o serviço dorme após ~15 min e o disco é **efêmero** — por
+> isso o banco vai no Neon e a chave de criptografia em variável de ambiente
+> (`OPENHUD_ENCRYPTION_KEY`), para que as chaves de API continuem legíveis após
+> um redeploy.
+
+Alternativas com o mesmo `Dockerfile` (ver Apêndice A do DEPLOY.md):
+`docker compose up -d --build` em um VPS, Railway ou Fly.io.
 
 ### Validado neste ambiente
-- `docker build` concluído; container sobe, responde `/api/health` e serve o
-  login (modo keyless, `provider: pollinations`).
+- `docker build` concluído; container sobe e responde `/health`, `/ready`,
+  `/version`, `/`, `/download` e `/login`.
+- Caminho **SQLite** e caminho **PostgreSQL** testados com um Postgres real: o
+  schema é criado automaticamente e uma conta criada sobrevive ao reinício do
+  container (login funciona depois do restart).
 - Conexão do agente pela URL pública **HTTPS/WSS** funciona (pareamento +
   token), então o mesmo fluxo serve para um host na nuvem.
 
-### Onde hospedar de graça (pesquisa de outubro/2026)
-| Plataforma | Cartão? | WebSocket | Observação |
-|---|---|---|---|
-| **Render** (free) | não | sim | dorme após 15 min sem tráfego; acorda em ~60 s |
-| **Railway** (free) | não | sim | US$ 1/mês de crédito; pausa quando acaba |
-| **Google Cloud Run** | sim | sim | cota mensal; exige cartão |
-| **Fly.io** | sim | sim | sem free tier novo; ~US$ 2/mês |
-
-Para uso 24/7 sem dormir, a opção mais barata é um VPS próprio (~US$ 3–5/mês)
-ou o Fly.io pago. O `render.yaml` já está pronto para o caminho sem cartão.
 
 ---
 
@@ -862,7 +882,7 @@ O OpenHUD deixou de ser uma ferramenta de senha única e passou a ser um
   conexão, chat, Codex, imagens, vídeo, plugins, inteligência, privacidade,
   admin, com indicador do provedor/modo e logout).
 - `Dockerfile` + `render.yaml`; **build do container validado** neste ambiente.
-- Suíte de **208 testes** automatizados, todos passando.
+- Suíte de **227 testes** automatizados, todos passando.
 
 ### Dependem de configuração externa
 - **Chave de API** de um provedor (Groq/Google/OpenRouter) para respostas

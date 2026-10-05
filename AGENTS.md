@@ -209,10 +209,16 @@ Ambos expõem a MESMA interface; `_translate` troca `?` por `%s`. Requer
 `psycopg[binary]` (já em requirements.txt).
 
 ## Deploy
-`Dockerfile` (estado em `/data`) + `render.yaml`. A porta vem de
-`OPENHUD_PORT` ou `PORT` (`config.py`). Guia completo em `DEPLOY.md`
-(comparação de hospedagem gratuita, banco Neon/Supabase, publicação e
-distribuição do instalador).
+Plataforma escolhida: **Render (plano free) + Postgres no Neon** (custo zero,
+HTTPS/WSS/SSE automáticos, banco persistente). `Dockerfile` (estado em `/data`)
++ `render.yaml` (Blueprint). A porta vem de `OPENHUD_PORT` ou `PORT`
+(`config.py`). Guia completo em `DEPLOY.md`; alternativas (Fly/Railway/VPS) no
+Apêndice A. No free tier o disco é **efêmero**: use `OPENHUD_DATABASE_URL`
+(Neon) para persistir o banco **e** `OPENHUD_ENCRYPTION_KEY` (Fernet) para que
+as chaves de API cifradas continuem legíveis após um redeploy — sem ela o
+`SecretCipher` (`core/crypto.py`) geraria uma nova chave e perderia os segredos.
+`OPENHUD_PASSWORD`/`OPENHUD_SESSION_SECRET`/`OPENHUD_ENCRYPTION_KEY` são gerados
+pelo `render.yaml` (`generateValue: true`).
 
 ## Site público e distribuição (Fase 6)
 - `openhud/web/site.py`: páginas públicas **sem login** (`/`, `/features`,
@@ -257,7 +263,7 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **208 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **227 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
   diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
   estratégias, backtest, alertas, paper, permissões, idempotência e as
@@ -301,12 +307,16 @@ Instalar sem pipe-to-shell: baixar
   é artefato de build e **não** é versionado.
 - **Kit de hospedagem permanente**: `Dockerfile` (python:3.13-slim, não-root,
   healthcheck), `.dockerignore`, `fly.toml` (volume `/data`), `render.yaml`
-  (free + Postgres externo), `railway.json`, `docker-compose.yml` e `.env.example`.
+  (free + Postgres externo + `OPENHUD_ENCRYPTION_KEY`), `railway.json`,
+  `docker-compose.yml` e `.env.example`.
   Endpoints públicos de plataforma: `/health` (liveness), `/ready` (checa o
   banco), `/version`. CORS é opt-in via `OPENHUD_CORS_ORIGINS` (nunca wildcard;
   lido em `openhud/config.py` como `settings.cors_origins`). Testes em
   `tests/test_deploy.py` cobrem CORS (subprocesso), o manifesto e os arquivos do
-  kit.
+  kit. Validado com Docker real: `docker build` + container serve `/health`,
+  `/ready`, `/version`, `/`, `/download`, `/login`; caminho Postgres testado com
+  `postgres:16-alpine` (schema criado sozinho; conta sobrevive ao
+  `docker restart`). `railway.json` precisa ser JSON válido (sem comentários).
 - **GPU multi-vendor**: `openhud/agent/gpu.py` (NVIDIA/NVML, AMD/Intel via
   sysfs/CIM/lspci); métricas ao vivo só quando legíveis, nunca inventadas.
 - **Teste no Windows**: `installer/windows-smoke-test.ps1` automatiza o

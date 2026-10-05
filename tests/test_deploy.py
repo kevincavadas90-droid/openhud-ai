@@ -126,6 +126,20 @@ def test_render_blueprint_uses_health_and_documents_persistence():
     assert "OPENHUD_DATA_DIR" in text
     # Free tier has no disk, so the blueprint must steer users to external DB.
     assert "OPENHUD_DATABASE_URL" in text
+    # Ephemeral disk also loses the Fernet key; it must be supplied by env.
+    assert "OPENHUD_ENCRYPTION_KEY" in text
+
+
+def test_railway_config_is_valid_json():
+    """Railway rejects the file if it contains comments; keep it strict JSON."""
+    data = json.loads((ROOT / "railway.json").read_text(encoding="utf-8"))
+    assert data["deploy"]["healthcheckPath"] == "/health"
+    assert data["build"]["builder"] == "DOCKERFILE"
+
+
+def test_env_example_documents_encryption_key():
+    text = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "OPENHUD_ENCRYPTION_KEY" in text
 
 
 def test_dockerfile_sets_safe_defaults():

@@ -231,7 +231,7 @@ def login_page() -> FileResponse:
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     s = runtime.get_settings()
-    configured = s["provider"] in KEYLESS_NAMES or bool(runtime.secrets.get(s["provider"]))
+    configured = s["provider"] in KEYLESS_NAMES or bool(runtime.secrets.get_or_none(s["provider"]))
     return {
         "status": "ok",
         "provider": s["provider"],
@@ -291,10 +291,15 @@ def update_settings(patch: SettingsPatch) -> dict[str, Any]:
 
 @app.get("/api/secrets")
 def list_secrets() -> list[dict[str, str]]:
-    return [
-        {"name": name, "preview": runtime.secrets.mask(runtime.secrets.get(name))}
-        for name in runtime.secrets.names()
-    ]
+    out: list[dict[str, str]] = []
+    for name in runtime.secrets.names():
+        try:
+            preview = runtime.secrets.mask(runtime.secrets.get(name))
+        except ValueError:
+            # Wrong/rotated OPENHUD_ENCRYPTION_KEY: report honestly instead of 500.
+            preview = "(indecifrável: confira OPENHUD_ENCRYPTION_KEY)"
+        out.append({"name": name, "preview": preview})
+    return out
 
 
 @app.post("/api/secrets")

@@ -4,6 +4,20 @@ Todas as mudanças relevantes do OpenHUD AI. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o versionamento
 segue [SemVer](https://semver.org/lang/pt-BR/).
 
+## Unreleased
+
+- **Hospedagem pública permanente**: plataforma definida (Render free + Postgres
+  no Neon) e documentada em `DEPLOY.md`; alternativas (Fly/Railway/VPS) no
+  Apêndice A. `railway.json` corrigido para JSON válido.
+- **Chaves de API persistentes em disco efêmero**: nova variável
+  `OPENHUD_ENCRYPTION_KEY` (Fernet) para que os segredos cifrados continuem
+  legíveis após um redeploy; gerada automaticamente pelo `render.yaml`.
+- **Degradação honesta**: se a chave de criptografia estiver errada/rotacionada,
+  `/api/secrets` informa o problema em vez de retornar HTTP 500, e
+  `/api/health`, diagnóstico e busca continuam funcionando.
+- **README** com badges, recursos e início rápido; contagem de testes atualizada.
+- Testes: **227** automatizados, todos passando.
+
 ## 5.1.0 (2026-10-04)
 
 - **Contas de usuário**: cadastro, login, logout, recuperação e redefinição de

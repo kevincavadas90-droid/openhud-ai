@@ -48,7 +48,7 @@ class WebSearchTool(Tool):
         if not query:
             return ToolResult(False, "Consulta vazia.")
         max_results = min(int(args.get("max_results", 5)), 10)
-        brave_key = ctx.secrets.get("brave") if ctx.secrets else None
+        brave_key = ctx.secrets.get_or_none("brave") if ctx.secrets else None
         ctx.log("web_search", query)
         try:
             if brave_key:

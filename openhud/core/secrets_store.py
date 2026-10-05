@@ -21,6 +21,17 @@ class SecretStore:
         token = self.db.get_secret(name)
         return self.cipher.decrypt(token) if token else None
 
+    def get_or_none(self, name: str) -> str | None:
+        """Like :meth:`get` but tolerant of an undecryptable value.
+
+        Used where a wrong/rotated ``OPENHUD_ENCRYPTION_KEY`` should degrade
+        gracefully (health, diagnostics, provider setup) instead of raising.
+        """
+        try:
+            return self.get(name)
+        except ValueError:
+            return None
+
     def delete(self, name: str) -> None:
         self.db.delete_secret(name)
 

@@ -32,6 +32,10 @@ services:
       # REQUIRED for persistence on the free tier (external Postgres URL).
       - key: OPENHUD_DATABASE_URL
         sync: false
+      # REQUIRED on the free tier: keeps stored API keys decryptable after a
+      # redeploy (the disk is ephemeral). Fernet key — generate once and keep it.
+      - key: OPENHUD_ENCRYPTION_KEY
+        generateValue: true
       # Public base URL, used for SEO/canonical links and reset e-mails.
       - key: OPENHUD_PUBLIC_URL
         sync: false

@@ -26,20 +26,31 @@ servidor já publica o site, a API, o WebSocket do agente e o SSE do chat.
 
 ---
 
-## 2. Plataformas recomendadas (comparação honesta, 2026)
+## 2. Plataforma escolhida: **Render** (plano grátis) + Postgres no **Neon**
 
-| Plataforma | Free tier | Disco persistente | WebSocket/SSE | Observação |
-| --- | --- | --- | --- | --- |
-| **Fly.io** | Não (paga por uso, ~US$2/mês) | **Sim** (volumes) | Sim | **Melhor opção**: barato, always-on, volume + Postgres |
-| **Render** | Sim (dorme ~15 min) | **Não** no free | Sim | Free exige Postgres externo; pago (Starter) tem disco |
-| **Railway** | US$1 de crédito/mês | Volume pago + Postgres | Sim | Fácil de subir; Postgres com 1 clique |
-| **Koyeb** | Só Postgres grátis | Não | Sim | Compute free removido; Pro a partir de US$29 |
-| **VPS (Hetzner/DO)** | Não (~US$4–6/mês) | Sim | Sim | Mais controle; ótimo para servir o instalador |
+Para o objetivo **site público + API + login + banco persistente**, com
+simplicidade e custo zero, a opção recomendada é **Render** (Blueprint, deploy a
+partir do repositório GitHub) com um **Postgres gratuito no Neon**.
 
-**Recomendação para hospedagem permanente e barata:** **Fly.io** com um volume
-de 1 GB (≈ US$2/mês) — sempre ligado, disco real, WebSocket/SSE nativos.
-Se quiser custo zero no começo: **Render free + Postgres no Neon** (o serviço
-dorme quando ocioso; a primeira visita acorda em segundos).
+Por que esta escolha:
+
+| Critério | Como o Render + Neon atende |
+| --- | --- |
+| Custo | **Grátis** (web service free + Postgres free no Neon) |
+| Site + API + login | Um único processo FastAPI serve tudo |
+| HTTPS/WSS/SSE | Automáticos (WebSocket do agente e streaming do chat funcionam) |
+| Deploy simples | **Blueprint** lê o `render.yaml`; conecta o repo e sobe |
+| Banco persistente | Postgres do Neon sobrevive a reinícios/redeploys |
+| Segredos | Render gera `OPENHUD_PASSWORD`, `OPENHUD_SESSION_SECRET` e `OPENHUD_ENCRYPTION_KEY` |
+
+> **Limitação honesta do plano grátis:** o serviço *dorme* após ~15 min ocioso e
+> a primeira visita demora alguns segundos para acordar; o disco é **efêmero**
+> (por isso o banco vai no Neon e a chave de criptografia vai em variável de
+> ambiente). Para sempre-ligado sem dormir, o plano pago do Render (Starter) ou
+> um VPS pequeno resolvem — mas isso deixa de ser custo zero.
+
+Alternativas (mesmo `Dockerfile`, se você preferir depois): Fly.io com volume
+(pago, ~US$2/mês, sempre-ligado) e Railway. Veja o **Apêndice A**.
 
 ---
 
@@ -89,84 +100,42 @@ python -c "import secrets;print(secrets.token_urlsafe(48))"   # session secret
 
 ---
 
-## 5. Passo a passo por plataforma
+## 5. Passo a passo: Render (plataforma escolhida)
 
-### 5.1 Fly.io (recomendado — permanente e barato)
+### 5.1 Publicar em 5 passos
 
-```bash
-# 1. Instale o CLI e faça login
-curl -L https://fly.io/install.sh | sh
-fly auth login
+1. **Suba o código no GitHub** (veja §7). Repositório sugerido: `openhud-ai`.
+2. **Crie um Postgres grátis no [neon.tech](https://neon.tech)** e copie a
+   connection string (`postgresql://...?sslmode=require`).
+3. Em **[render.com](https://render.com) → New → Blueprint**, selecione o
+   repositório. O Render lê o `render.yaml` e cria o serviço web.
+4. No painel do serviço, preencha as variáveis marcadas `sync: false`
+   (veja a tabela da §4):
+   - `OPENHUD_DATABASE_URL` → a URL do Neon (obrigatória para persistência);
+   - `OPENHUD_PUBLIC_URL` → `https://SEU-APP.onrender.com` (ou domínio próprio);
+   - `OPENHUD_DOWNLOAD_URL` / `OPENHUD_DONATION_URL` / `OPENHUD_SMTP_*` (opcionais).
+   `OPENHUD_PASSWORD`, `OPENHUD_SESSION_SECRET` e `OPENHUD_ENCRYPTION_KEY` já são
+   gerados automaticamente pelo Blueprint.
+5. **Deploy**. O healthcheck é `/health`.
 
-# 2. Crie o app (o nome em fly.toml é "openhud-ai"; ajuste se já existir)
-fly apps create openhud-ai
-
-# 3. Crie o volume persistente onde o SQLite/segredos ficam
-fly volumes create openhud_data --size 1 --region gru
-
-# 4. Defina os segredos (nunca vão para o repositório)
-fly secrets set OPENHUD_PASSWORD=... OPENHUD_SESSION_SECRET=... \
-  OPENHUD_PUBLIC_URL=https://openhud-ai.fly.dev
-
-# 5. Publique
-fly deploy
-
-# 6. Confira
-curl https://openhud-ai.fly.dev/health
-curl https://openhud-ai.fly.dev/ready
-```
-
-Domínio próprio: `fly certs add openhud.SEUDOMINIO.com` e aponte o DNS.
-
-### 5.2 Render (custo zero, com Postgres externo)
-
-1. Suba o repositório no GitHub (veja §7).
-2. Crie um Postgres grátis no **neon.tech** (ou supabase.com) e copie a URL.
-3. Em render.com: **New → Blueprint** → selecione o repositório (usa `render.yaml`).
-4. No painel, preencha as variáveis marcadas `sync: false`:
-   `OPENHUD_DATABASE_URL`, `OPENHUD_PUBLIC_URL`, `OPENHUD_DOWNLOAD_URL`,
-   `OPENHUD_DONATION_URL`, `OPENHUD_SMTP_*`.
-5. Deploy. O healthcheck é `/health`.
-
-> Free tier dorme após ~15 min. A primeira visita acorda em alguns segundos.
-> **Sem `OPENHUD_DATABASE_URL`, as contas resetam a cada reinício.**
-
-### 5.3 Railway
+Confira:
 
 ```bash
-npm i -g @railway/cli
-railway login
-railway init          # cria/vincula o projeto
-# No painel: New → Database → PostgreSQL (injeta DATABASE_URL automaticamente)
-railway variables set OPENHUD_PASSWORD=... OPENHUD_SESSION_SECRET=... \
-  OPENHUD_PUBLIC_URL=https://SEU-APP.up.railway.app
-railway up
+curl https://SEU-APP.onrender.com/health
+curl https://SEU-APP.onrender.com/ready
+curl https://SEU-APP.onrender.com/version
 ```
 
-O `railway.json` já define build por Dockerfile e healthcheck `/health`.
+Domínio próprio: **Settings → Custom Domain** no Render e aponte o CNAME.
 
-### 5.4 VPS (Docker Compose, com HTTPS)
+### 5.2 Resumo (o que colar)
 
-```bash
-# No servidor:
-git clone <SEU-REPO> openhud && cd openhud
-export OPENHUD_PASSWORD=$(python3 -c "import secrets;print(secrets.token_urlsafe(24))")
-export OPENHUD_SESSION_SECRET=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
-docker compose up -d --build            # SQLite + volume
-# ou, com Postgres gerenciado pelo compose:
-docker compose --profile postgres up -d --build
-```
-
-Coloque um proxy TLS na frente (Caddy é o mais simples):
-
-```
-# Caddyfile
-openhud.SEUDOMINIO.com {
-    reverse_proxy 127.0.0.1:8000
-}
-```
-
-O Caddy emite o certificado e faz proxy de WebSocket/SSE automaticamente.
+| Item | Valor |
+| --- | --- |
+| **PLATAFORMA** | Render (Blueprint, plano free) + Postgres Neon (free) |
+| **ARQUIVO DE CONFIGURAÇÃO** | `render.yaml` (e `Dockerfile`) |
+| **COMANDO DE DEPLOY** | Painel: *New → Blueprint* → repositório → *Apply* (sem CLI) |
+| **VARIÁVEIS NECESSÁRIAS** | `OPENHUD_DATABASE_URL`, `OPENHUD_PUBLIC_URL` (obrigatórias); `OPENHUD_DOWNLOAD_URL`, `OPENHUD_DONATION_URL`, `OPENHUD_SMTP_*` (opcionais). `OPENHUD_PASSWORD`/`OPENHUD_SESSION_SECRET`/`OPENHUD_ENCRYPTION_KEY` são gerados pelo Blueprint |
 
 ---
 
@@ -251,3 +220,52 @@ hospedagem nem um token do GitHub com escopo `repo`. Portanto:
 
 Assim que você rodar os passos da §5, o site estará em um endereço permanente e
 real, e você deve atualizar `OPENHUD_PUBLIC_URL` para ele.
+
+---
+
+## Apêndice A. Alternativas (mesmo Dockerfile)
+
+A plataforma escolhida é o **Render**. Os arquivos abaixo já estão no
+repositório caso você prefira outra opção depois — nenhum deles é obrigatório.
+
+### A.1 Fly.io (sempre-ligado, pago ~US$2/mês, com volume)
+
+```bash
+curl -L https://fly.io/install.sh | sh && fly auth login
+fly apps create openhud-ai
+fly volumes create openhud_data --size 1 --region gru
+fly secrets set OPENHUD_PASSWORD=... OPENHUD_SESSION_SECRET=... \
+  OPENHUD_PUBLIC_URL=https://openhud-ai.fly.dev
+fly deploy
+```
+
+Config em `fly.toml` (volume `/data`, healthcheck `/health`, HTTPS forçado).
+
+### A.2 Railway (Postgres com 1 clique)
+
+```bash
+npm i -g @railway/cli && railway login && railway init
+# Painel: New -> Database -> PostgreSQL (injeta DATABASE_URL)
+railway up
+```
+
+Config em `railway.json` (build por Dockerfile, healthcheck `/health`).
+
+### A.3 VPS (Docker Compose + HTTPS com Caddy)
+
+```bash
+git clone <SEU-REPO> openhud && cd openhud
+export OPENHUD_PASSWORD=$(python3 -c "import secrets;print(secrets.token_urlsafe(24))")
+export OPENHUD_SESSION_SECRET=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
+export OPENHUD_ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")
+docker compose up -d --build
+```
+
+`Caddyfile`:
+
+```
+openhud.SEUDOMINIO.com {
+    reverse_proxy 127.0.0.1:8000
+}
+```
+

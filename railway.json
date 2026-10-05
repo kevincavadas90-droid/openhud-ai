@@ -1,15 +1,3 @@
-# Railway deployment for OpenHUD AI.
-#
-# Railway builds the Dockerfile automatically. Add a Postgres plugin
-# (New > Database > PostgreSQL) and Railway injects DATABASE_URL for you, so
-# data persists without a volume. Add a volume mounted at /data if you prefer
-# SQLite. Set the secrets below in the dashboard.
-#
-#   railway login
-#   railway init            # link/create the project
-#   railway up              # build + deploy
-#
-# WebSocket and SSE work over Railway's HTTPS/WSS proxy.
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {

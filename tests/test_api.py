@@ -96,6 +96,26 @@ def test_secrets_never_return_full_value():
     assert entry["preview"].startswith("sk-v")
 
 
+def test_secret_listing_reports_undecryptable_key_without_500():
+    """If OPENHUD_ENCRYPTION_KEY is wrong/rotated, the listing must explain the
+    problem (not crash) and the rest of the app must keep working."""
+    client.post("/api/secrets", json={"name": "groq", "value": "gsk-abcdefghijklmnop"})
+    cipher = runtime.secrets.cipher
+    good = cipher._fernet
+    from cryptography.fernet import Fernet
+
+    cipher._fernet = Fernet(Fernet.generate_key())
+    try:
+        r = client.get("/api/secrets")
+        assert r.status_code == 200
+        entry = next(s for s in r.json() if s["name"] == "groq")
+        assert "indecifrável" in entry["preview"]
+        assert client.get("/api/health").status_code == 200
+    finally:
+        cipher._fernet = good
+        client.delete("/api/secrets/groq")
+
+
 def test_projects_conversations_messages():
     proj = client.post("/api/projects", json={"name": "Projeto X"}).json()
     conv = client.post("/api/conversations", json={"project_id": proj["id"]}).json()

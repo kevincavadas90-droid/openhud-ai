@@ -185,7 +185,7 @@ class Runtime:
     def provider_config(self) -> ProviderConfig:
         s = self.get_settings()
         provider = s.get("provider", "pollinations")
-        api_key = self.secrets.get(provider)
+        api_key = self.secrets.get_or_none(provider)
         base_url = s.get("base_url") or DEFAULT_BASE_URLS.get(provider, DEFAULT_BASE_URLS["pollinations"])
         return ProviderConfig(
             provider="anthropic" if provider == "anthropic" else ("ollama" if provider == "ollama" else "openai"),
