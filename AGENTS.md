@@ -323,9 +323,20 @@ Instalar sem pipe-to-shell: baixar
   é artefato de build e **não** é versionado.
   Estado do publish (verificado): a tag `v5.1.1` existe no commit final e o ZIP
   foi reconstruído a partir dele. Publicação no GitHub **feita** (ver acima) com
-  um PAT de usuário escopo `repo`; o PAT **não** tem escopo `workflow`. Sem
-  credencial de Render/Neon, o deploy real de hospedagem continua sendo do
-  operador. Tudo isso é honesto: nada foi fabricado.
+  um PAT de usuário escopo `repo`; o PAT **não** tem escopo `workflow`. Tudo
+  isso é honesto: nada foi fabricado.
+- **Deploy público real (Render + Neon)**: o serviço `openhud`
+  (`srv-db1gprgu01pc73ecgudg`, plano free, região Oregon, Docker) está **live**
+  em `https://openhud.onrender.com`. Deploy feito pela API do Render a partir do
+  `master` do GitHub. Segredos de produção (`OPENHUD_PASSWORD`,
+  `OPENHUD_SESSION_SECRET`, `OPENHUD_ENCRYPTION_KEY`) foram gerados novos e
+  existem **somente** como env vars do Render; `OPENHUD_DATABASE_URL` aponta para
+  o Postgres Neon (schema criado sozinho: 24 tabelas). Nunca gravados no Git,
+  ZIP, frontend ou logs. Verificado ao vivo: 33/33 no verificador, todas as
+  páginas/endpoints 200, cookies `HttpOnly; Secure; SameSite=lax`, CSRF,
+  HSTS, CORS não-wildcard, ciclo de conta completo e persistência através de
+  restart (login → restart → login). O plano free hiberna por inatividade; a
+  primeira requisição pode levar ~30-60s (cold start).
 - **Kit de hospedagem permanente**: `Dockerfile` (python:3.13-slim, não-root,
   healthcheck), `.dockerignore`, `fly.toml` (volume `/data`), `render.yaml`
   (free + Postgres externo + `OPENHUD_ENCRYPTION_KEY`), `railway.json`,

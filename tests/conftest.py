@@ -7,7 +7,15 @@ where the window is real time).
 """
 from __future__ import annotations
 
+import os
+
 import pytest
+
+# The suite must be hermetic: a DATABASE_URL exported in the developer's shell
+# (e.g. to point at a production Postgres) would otherwise make SQLite-specific
+# tests run against Postgres. Drop it before any test module imports the app.
+for _var in ("DATABASE_URL", "OPENHUD_DATABASE_URL"):
+    os.environ.pop(_var, None)
 
 
 @pytest.fixture(autouse=True)
