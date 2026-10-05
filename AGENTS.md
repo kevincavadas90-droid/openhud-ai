@@ -232,7 +232,9 @@ pelo `render.yaml` (`generateValue: true`).
   (`OPENHUD_DOWNLOAD_URL` → artefato local em `dist/` ou `installer/Output/` →
   nada). SHA-256 e tamanho são calculados do arquivo real; `published` só é
   true com URL real. `_artifact_dirs()` lê `OPENHUD_RELEASE_DIR` de forma
-  preguiçosa (testável). `changelog()` lê `CHANGELOG.md`.
+  preguiçosa (testável). `changelog()` lê `CHANGELOG.md`; `changelog_summary()`
+  usa a entrada da versão atual (ignora a seção `Unreleased`) para as notas de
+  `/version` e da página de download.
 - `openhud/agent/selfcheck.py`: diagnóstico real (`PASS`/`WARNING`/`FAIL`/
   `NOT INSTALLED`/`NOT PERMITTED`). CLI: `python -m openhud.agent.selfcheck`,
   `openhud-agent.exe --diagnose`. Usa `TelemetryCollector().collect()` (a
@@ -263,7 +265,7 @@ Instalar sem pipe-to-shell: baixar
   INTERMITENTE: alterna entre 200, HTTP 500 (ENOSPC) e HTTP 402. Por isso o
   retry + fallback para Ollama são essenciais. Não confie nele como único
   provedor.
-- Suíte: **227 testes** em `tests/`. `test_api.py` faz login real no import
+- Suíte: **228 testes** em `tests/`. `test_api.py` faz login real no import
   (`OPENHUD_PASSWORD=test-password`); `test_pc_agent.py` cobre hub, telemetria,
   diagnóstico e a API do agente; `test_trading.py` cobre indicadores, risco,
   estratégias, backtest, alertas, paper, permissões, idempotência e as

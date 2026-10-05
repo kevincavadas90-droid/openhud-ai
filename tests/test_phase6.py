@@ -70,6 +70,19 @@ def test_changelog_api_has_entries():
     assert all("version" in e and "items" in e for e in data["entries"])
 
 
+def test_release_notes_describe_released_version_not_unreleased():
+    """The /version notes must come from the released version's entry, never
+    the in-progress "Unreleased" section."""
+    import openhud
+    from openhud.core import release as rel
+
+    notes = client.get("/version").json()["download"]["notes"]
+    assert notes  # non-empty
+    assert "Unreleased" not in notes
+    entry = next(e for e in rel.changelog() if e["version"] == openhud.__version__)
+    assert notes == "; ".join(entry["items"][:4])
+
+
 def test_site_assets_exist():
     for path in ("/static/site/site.css", "/static/site/logo.svg",
                  "/static/site/favicon.svg", "/static/site/app-icon.png"):

@@ -16,7 +16,7 @@ segue [SemVer](https://semver.org/lang/pt-BR/).
   `/api/secrets` informa o problema em vez de retornar HTTP 500, e
   `/api/health`, diagnóstico e busca continuam funcionando.
 - **README** com badges, recursos e início rápido; contagem de testes atualizada.
-- Testes: **227** automatizados, todos passando.
+- Testes: **228** automatizados, todos passando.
 
 ## 5.1.0 (2026-10-04)
 

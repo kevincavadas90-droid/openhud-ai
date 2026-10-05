@@ -222,6 +222,16 @@ def changelog() -> list[dict]:
     }]
 
 
+def _clean_md(text: str) -> str:
+    """Flatten the common inline markdown used in CHANGELOG.md so the HTML page
+    and the plain-text notes render cleanly (bold, code, links)."""
+    import re
+
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = text.replace("**", "").replace("`", "")
+    return text.strip()
+
+
 def _parse_changelog(text: str) -> list[dict]:
     entries: list[dict] = []
     current: dict | None = None
@@ -234,7 +244,10 @@ def _parse_changelog(text: str) -> list[dict]:
             version, _, date = title.partition(" ")
             current = {"version": version.strip(), "date": date.strip("() "), "items": []}
         elif current is not None and line.lstrip().startswith(("- ", "* ")):
-            current["items"].append(line.lstrip()[2:].strip())
+            current["items"].append(_clean_md(line.lstrip()[2:]))
+        elif current and current["items"] and line.strip() and not line.startswith(("#", ">", "|")):
+            # Wrapped continuation of the previous bullet.
+            current["items"][-1] = f'{current["items"][-1]} {_clean_md(line)}'.strip()
     if current:
         entries.append(current)
     return entries or [{"version": __version__, "date": "", "items": ["Sem notas."]}]
@@ -244,7 +257,12 @@ def changelog_summary(limit: int = 4) -> str:
     entries = changelog()
     if not entries:
         return ""
-    return "; ".join(entries[0]["items"][:limit])
+    # Notes describe the *released* version: prefer the entry that matches
+    # __version__, and never surface the in-progress "Unreleased" section.
+    chosen = next((e for e in entries if e["version"] == __version__), None)
+    if chosen is None:
+        chosen = next((e for e in entries if e["version"].lower() != "unreleased"), entries[0])
+    return "; ".join(chosen["items"][:limit])
 
 
 def donation_url() -> str | None:
